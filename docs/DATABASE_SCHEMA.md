@@ -145,4 +145,6 @@ Proposals may only execute while order is `draft`.
 
 ## Business rules storage
 
-Quantity rules (Decision 5) will live in a `quantity_rules` table once formulas are known **[OPEN #3]**. Shape intentionally not designed yet.
+`quantity_rules` (Phase 3): `category_id` unique FK · `per_adult`, `per_child` numeric(10,3) ≥ 0 · `round_step` numeric(10,3) > 0 default 1. Need = adults×per_adult + children×per_child, split evenly across the selected dishes of that category and rounded up to `round_step`; `per_guest` dishes suggest adults + children. Values are entered by the owner **[#3]**.
+
+Phase 3 also adds `orders.access_token_hash` (sha256 of the guest token), `orders.time_slot_id`, `orders.currency`; `customers` has no `auth_user_id` yet (guest checkout, #1). `requested_at` is stored in `BUSINESS_TIMEZONE` (default Asia/Jerusalem).

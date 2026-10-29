@@ -6,6 +6,6 @@ export function h(tag, props = {}, ...children) {
     else if (value === true) el.setAttribute(key, "");
     else if (value !== false && value != null) el.setAttribute(key, value);
   }
-  el.append(...children.flat().filter((c) => c != null));
+  el.append(...children.flat(Infinity).filter((c) => c != null && c !== false));
   return el;
 }

@@ -6,10 +6,7 @@ Format: **Question** · *Why it matters* · **Blocks**
 
 | # | Topic | Question | Why it matters | Blocks |
 |---|---|---|---|---|
-| 1 | Customer authentication / guest checkout | Must customers create an account? Email magic link, OTP by phone, password, or guest checkout with a tokenized link? | Determines ownership model, RLS policies, and how a customer returns to a draft/quote | Phase 3 order ownership, Phase 4 chat history |
 | 2 | Payment & deposit | Is any deposit or payment collected in-app? | Payments are out of scope unless approved | Nothing in MVP unless approved |
-| 3 | Serving & quantity formulas | Per category/dish, how much per adult / child? Rounding (e.g., whole trays)? Different for vegetarian/vegan guests? | Quantity recommendation must use business rules, not AI guesses | Phase 3 quantity engine (schema can hold rules; values unknown) |
-| 4 | Overlapping guest dietary categories | Are vegetarian/vegan/restricted guests counted *within* adults/children (subsets) or separately? Is vegan a subset of vegetarian? | Prevents double-counting | Phase 3 guest composition validation |
 | 5 | Availability & capacity | Max orders/guests per day or per slot? Lead time? Same-day orders? | Defines date/slot validation | Phase 2 availability rules, Phase 3 date picker |
 | 6 | Quote modification & negotiation | Can the owner edit or counter-propose a quote, or only approve/reject? | Adds states and UI | Out of MVP until decided |
 | 7 | Cancellation & revision | Can a customer cancel or edit after submission or approval? Deadlines? | Adds states and rules | Out of MVP until decided |
@@ -17,7 +14,6 @@ Format: **Question** · *Why it matters* · **Blocks**
 | 9 | Kashrut certification | Which certification(s)? Shown per dish or business-wide? Mixing meat & dairy dishes in one order allowed? | Affects data model and validation | Phase 2 dish fields, Phase 3 conflict checks |
 | 10 | Disposable serving equipment | Are utensils/disposables orderable? Priced how? | Could be catalog items or separate | Out of MVP until decided |
 | 11 | Alcohol | Offered at all? Age verification? | Legal implications | Out of MVP until decided |
-| 14 | VAT & rounding | Are catalog prices VAT-inclusive? VAT rate handling? Rounding rules for totals and weight-based prices? | Deterministic pricing correctness | Phase 3 pricing engine final rules |
 | 15 | Minimum order quantities | Minimum per dish, per order, or minimum guests? Minimum for delivery? | Validation rules | Phase 2/3 validation |
 | 16 | LLM provider | Which model provider (e.g., Anthropic Claude) and budget? | API keys, tool-calling format, cost | Phase 4 |
 | 18 | Weight unit | kg, 100 g, or configurable per dish? | Per-weight pricing math | Phase 2 pricing units |
@@ -33,3 +29,7 @@ When a decision is made, record it here and move the row out of the table above.
 | 2026-10-29 | 12 | Interface languages: Arabic, Hebrew and English; RTL for ar/he | Owner |
 | 2026-10-29 | 13 | No notifications; quote requests are viewed on the admin page | Owner |
 | 2026-10-29 | 17 | ILS (₪) | Owner |
+| 2026-10-29 | 1 | Guest checkout, no accounts: customer leaves name + email or phone and gets a private link (token in the URL fragment). Provisional; can move to Supabase Auth later | Owner |
+| 2026-10-29 | 3 | Mechanism only: owner sets per-category rules (per adult, per child, round-up step) in admin; no rule → no suggestion. Values not yet entered. Even split across selected dishes in a category is an engineering call | Owner |
+| 2026-10-29 | 4 | Vegetarian/vegan/restricted guests are counted within adults + children (each ≤ total). They don't change quantities yet | Owner |
+| 2026-10-29 | 14 | Catalog prices include VAT; no VAT line. Lines rounded half-up to 0.01 | Owner |

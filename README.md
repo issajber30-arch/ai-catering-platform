@@ -2,7 +2,7 @@
 
 Ordering and management web app for a **single catering business**. Customers plan private events, pick dishes, get backend-calculated quantities and prices, and chat with an AI assistant whose suggested changes only apply after the customer approves them. The business owner manages the catalog and approves or rejects every quotation.
 
-> Status: **Phase 2 — catalog and admin**. Database, public catalog API and the owner dashboard exist; ordering comes in Phase 3. See `docs/` for the specs.
+> Status: **Phase 3 — customer ordering**. Customers plan an event, pick dishes, see suggested quantities and a server-calculated price, and send a quote request via a private link; the owner approves or rejects it in the admin. The AI assistant comes in Phase 4. See `docs/` for the specs.
 
 ## Stack
 

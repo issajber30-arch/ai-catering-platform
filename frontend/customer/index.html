@@ -1,21 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Plan your event</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap">
   <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/customer.css">
 </head>
-<body>
-  <main>
-    <h1>Plan your event</h1>
-    <p>Placeholder. Screens are built in later phases (see docs/UX_UI_SPEC.md).</p>
-    <p>API status: <span id="status" aria-live="polite">checking…</span></p>
+<body class="ep">
+  <header class="ep-header">
+    <div class="ep-wrap ep-header-row">
+      <h1 id="title"></h1>
+      <div id="langs" role="group"></div>
+    </div>
+  </header>
+  <main class="ep-wrap">
+    <div id="message" role="status" aria-live="polite"></div>
+    <div id="app"></div>
   </main>
-  <script type="module">
-    import { api } from "/js/api.js";
-    const el = document.getElementById("status");
-    api("/health").then((r) => (el.textContent = r.status)).catch((e) => (el.textContent = e.message));
-  </script>
+  <div id="live" class="sr-only" role="status" aria-live="polite"></div>
+  <script type="module" src="/customer/customer.js"></script>
 </body>
 </html>

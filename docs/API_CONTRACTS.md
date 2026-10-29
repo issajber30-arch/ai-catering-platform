@@ -27,7 +27,9 @@ Common codes: `conflict` (409), `file_too_large` (413), `unsupported_media_type`
 | GET | `/api/catalog/dishes/{id}` | Dish detail incl. allergen statuses |
 | GET | `/api/availability?from=&to=` | Blocked dates + slots |
 
-## Customer orders (auth model **[OPEN #1]**)
+## Customer orders (Phase 3, implemented)
+
+Guest checkout (decision #1). `POST /api/orders` returns `access_token` once; every other customer route needs header `X-Order-Token`. A missing/wrong token and an unknown id both return 404. Customer routes accept `?lang=he|ar|en`. Public helpers: `GET /api/catalog/event-types`, `GET /api/delivery-zones` (active zones: id, name, fee). `time_slots.weekday`: Monday=0 … Sunday=6, null = any day.
 
 | Method | Path | Notes |
 |---|---|---|
@@ -83,6 +85,7 @@ Proposal shape:
 | GET/POST/PATCH/DELETE | `/api/admin/time-slots` |
 | GET/POST/DELETE | `/api/admin/blocked-dates` |
 | GET | `/api/admin/orders?status=` · GET `/api/admin/orders/{id}` |
+| GET | `/api/admin/quantity-rules` · PUT/DELETE `/api/admin/quantity-rules/{category_id}` `{per_adult, per_child, round_step}` |
 | POST | `/api/admin/orders/{id}/approve` · `/api/admin/orders/{id}/reject` `{note}` |
 
 ## Order status transitions
