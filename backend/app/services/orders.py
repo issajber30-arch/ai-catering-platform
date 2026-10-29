@@ -205,18 +205,21 @@ def get_pricing(db: Session, order_id, token, lang: str) -> PricingOut:
 
 
 def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str, geocode) -> OrderOut:
-    order = _draft(db, order_id, token, body.version)
+    current = customer_order(db, order_id, token)
     sent = body.model_fields_set
     event = body.event.model_dump() if body.event else {}
-    ftype = body.fulfillment_type or order.fulfillment_type
-    address = body.delivery_address if "delivery_address" in sent else order.delivery_address
-    zone_id = body.delivery_zone_id if "delivery_zone_id" in sent else order.delivery_zone_id
+    ftype = body.fulfillment_type or current.fulfillment_type
+    address = body.delivery_address if "delivery_address" in sent else current.delivery_address
+    zone_id = body.delivery_zone_id if "delivery_zone_id" in sent else current.delivery_zone_id
+    changed = ftype != current.fulfillment_type or address != current.delivery_address
+    # Geocode before taking the row lock: the lookup can take seconds and commits its cache,
+    # which would release the lock. Any change in between bumps the version, so _draft catches it.
+    fields = _delivery(db, geocode, ftype, address) if changed else {}
+    order = _draft(db, order_id, token, body.version)
     slot = check_logistics(
         db, event.get("event_date", order.event.event_date), ftype,
         body.time_slot_id or order.time_slot_id, address,
     )  # fmt: skip
-    changed = ftype != order.fulfillment_type or address != order.delivery_address
-    fields = _delivery(db, geocode, ftype, address) if changed else {}
     for k, v in event.items():
         setattr(order.event, k, v)
     delivery = ftype == FulfillmentType.delivery

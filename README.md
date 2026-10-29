@@ -2,7 +2,7 @@
 
 Ordering and management web app for a **single catering business**. Customers plan private events, pick dishes, get backend-calculated quantities and prices, and chat with an AI assistant whose suggested changes only apply after the customer approves them. The business owner manages the catalog and approves or rejects every quotation.
 
-> Status: **Phase 3 — customer ordering**. Customers plan an event, pick dishes, see suggested quantities and a server-calculated price, and send a quote request via a private link; the owner approves or rejects it in the admin. The AI assistant comes in Phase 4. See `docs/` for the specs.
+> Status: **Phase 3 — customer ordering**. Customers plan an event, pick dishes, see suggested quantities and a server-calculated price, and send a quote request via a private link; the owner approves or rejects it in the admin. Phase 3.1 adds the owner's business rules: 7 days' notice, ₪500 food minimum, distance-based delivery fee (OpenStreetMap, estimate confirmed by the owner), a meat + dairy warning and an allergen disclaimer, all editable in the admin Settings tab. Regression smoke test against a running server: `scripts/smoke_api.sh`. The AI assistant comes in Phase 4. See `docs/` for the specs.
 
 ## Stack
 

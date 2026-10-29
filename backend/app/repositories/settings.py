@@ -13,6 +13,7 @@ def cached(db: Session, key: str) -> GeocodeCache | None:
 
 
 def cache(db: Session, key: str, point: tuple[float, float] | None) -> None:
+    # shortcut: no eviction; add a TTL/size cap if unique-address volume grows (Phase 6).
     lat, lon = point or (None, None)
     db.execute(
         insert(GeocodeCache)

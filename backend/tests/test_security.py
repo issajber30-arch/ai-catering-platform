@@ -109,3 +109,11 @@ def test_oversized_body_rejected_before_auth(client):
     path = "/api/admin/dishes/00000000-0000-0000-0000-000000000000/image"
     big = client.post(path, files={"file": ("x.jpg", b"\xff\xd8\xff" + b"0" * (6 * 1024 * 1024))})
     assert big.status_code == 413 and error_code(big) == "file_too_large"
+
+
+def test_security_headers_on_api_and_pages(client):
+    for path in ("/health", "/customer/"):
+        headers = client.get(path).headers
+        assert "frame-ancestors 'none'" in headers["content-security-policy"]
+        assert headers["x-content-type-options"] == "nosniff"
+        assert headers["referrer-policy"] == "no-referrer"

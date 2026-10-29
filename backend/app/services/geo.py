@@ -31,7 +31,9 @@ def nominatim(address: str) -> tuple[float, float] | None:
     shortcut: no per-client limit, so a flood of unique addresses queues behind the lock;
     add a rate limit at the proxy/app before public launch (Phase 6)."""
     global _last_call
-    with _lock:
+    if not _lock.acquire(timeout=3):  # fail fast instead of piling up worker threads
+        raise GeocodeError
+    try:
         time.sleep(max(0.0, _last_call + 1.0 - time.monotonic()))
         try:
             response = httpx.get(
@@ -48,6 +50,8 @@ def nominatim(address: str) -> tuple[float, float] | None:
             raise GeocodeError from None
         finally:
             _last_call = time.monotonic()
+    finally:
+        _lock.release()
 
 
 def get_geocoder() -> Geocoder:

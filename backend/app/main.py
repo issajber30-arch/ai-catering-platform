@@ -25,6 +25,28 @@ async def limit_body_size(request: Request, call_next):
     return await call_next(request)
 
 
+# Defence in depth: the DOM is built with textContent, this blocks the rest (framing, sniffing,
+# foreign scripts, leaking the private order link via Referer).
+SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self'; img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; "
+        "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "X-Frame-Options": "DENY",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers.update(SECURITY_HEADERS)
+    return response
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "env": get_settings().app_env}

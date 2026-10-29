@@ -657,3 +657,13 @@ def test_geocode_failure_is_not_cached(db):
     assert geo.locate(db, flaky, "Jaffa St 1, Jerusalem") is None
     assert geo.locate(db, flaky, "Jaffa St 1, Jerusalem") == (31.78, 35.22)
     assert len(calls) == 2
+
+
+def test_geocoder_lock_timeout_is_a_failure_not_a_hang(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.services import geo
+
+    monkeypatch.setattr(geo, "_lock", SimpleNamespace(acquire=lambda timeout: False))
+    with pytest.raises(geo.GeocodeError):
+        geo.nominatim("anything")
