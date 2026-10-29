@@ -7,7 +7,7 @@ import psycopg
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.orm import Session
 
 from app.core import security
@@ -28,6 +28,8 @@ TABLES = (
 def engine():
     url = get_settings().test_database_url
     assert url, "Set TEST_DATABASE_URL (e.g. postgresql+psycopg://localhost/catering_test)"
+    # The schema is dropped below, so refuse anything that isn't clearly a throwaway test DB.
+    assert make_url(url).database.endswith("_test"), "TEST_DATABASE_URL must name a *_test database"
     with psycopg.connect(url.replace("+psycopg", ""), autocommit=True) as conn:
         conn.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
         for sql in sorted(MIGRATIONS.glob("*.sql")):

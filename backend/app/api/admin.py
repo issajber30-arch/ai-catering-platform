@@ -93,14 +93,15 @@ def put_dietary(dish_id: uuid.UUID, body: DietaryIn, db: Db) -> DishDetailOut:
 
 
 @router.post("/dishes/{dish_id}/image")
-async def upload_image(
+# Sync on purpose: the storage upload uses blocking httpx, so FastAPI runs it in the threadpool.
+def upload_image(
     dish_id: uuid.UUID,
     file: UploadFile,
     db: Db,
     upload: Annotated[Callable[[bytes, str], str], Depends(get_uploader)],
 ) -> DishDetailOut:
     dish = service.need(db, Dish, dish_id, "Dish")
-    data = await file.read(MAX_IMAGE_BYTES + 1)  # bounded read: never buffer more than the cap
+    data = file.file.read(MAX_IMAGE_BYTES + 1)  # bounded read: never buffer more than the cap
     if len(data) > MAX_IMAGE_BYTES:
         raise AppError(413, "Image must be 5 MB or smaller")
     kind = detect_image(data)

@@ -31,7 +31,13 @@ def upload_to_supabase(data: bytes, kind: str) -> str:
         f"{s.supabase_url}/storage/v1/object/{s.storage_bucket}/{name}",
         content=data,
         headers={
-            "Authorization": f"Bearer {s.supabase_service_role_key}",
+            # New sb_secret_ keys go in apikey only; legacy JWT service-role keys also need Bearer.
+            "apikey": s.supabase_service_role_key,
+            **(
+                {"Authorization": f"Bearer {s.supabase_service_role_key}"}
+                if s.supabase_service_role_key.startswith("eyJ")
+                else {}
+            ),
             "Content-Type": _TYPES[kind],
         },
         timeout=20,
