@@ -20,7 +20,8 @@ MIGRATIONS = Path(__file__).resolve().parents[2] / "database" / "migrations"
 SUPABASE_URL = "https://test-project.supabase.co"
 TABLES = (
     "dish_allergens, dish_dietary, dishes, dish_categories, allergens, "
-    "delivery_zones, time_slots, blocked_dates"
+    "delivery_zones, time_slots, blocked_dates, order_items, orders, events, customers, "
+    "quantity_rules"
 )
 
 
