@@ -12,10 +12,11 @@ const app = $("app");
 
 const st = {
   lang: "he", order: null, cred: null, step: "event", busy: false,
-  types: [], zones: [], slots: [], blocked: [], cats: [], dishes: [], cat: "all",
+  types: [], settings: { lead_time_days: 7, min_food_total: "500.00", max_km: "40.00" }, quote: null, slots: [], blocked: [], cats: [], dishes: [], cat: "all",
   recs: {}, details: {}, open: new Set(), imgBase: null, errs: {}, form: null,
 };
 const t = () => S[st.lang];
+const fmt = (text, vars) => text.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
 
 // ---- storage (may throw in private windows)
 const store = {
@@ -47,10 +48,14 @@ const money = (v, cur = "ILS") => new Intl.NumberFormat(LOCALES[st.lang], { styl
 const num = (v) => new Intl.NumberFormat(LOCALES[st.lang], { maximumFractionDigits: 3 }).format(Number(v));
 function unitText(pricingUnit, label) {
   const k = { per_guest: "perGuest", per_tray: "perTray", per_weight: "perKg", per_item: "perItem" }[pricingUnit];
-  if (pricingUnit === "per_weight") return label || t().perKg;
+  if (pricingUnit === "per_weight") return t().perKg; // always per kg, whatever the stored label
   return label ? `${t()[k]} (${label})` : t()[k];
 }
-const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const dateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+// Earliest bookable date: local today + lead time (the server re-checks in the business timezone).
+const minDate = () => { const d = new Date(); d.setDate(d.getDate() + st.settings.lead_time_days); return dateStr(d); };
+const leadMsg = () => fmt(t().leadHint, { n: st.settings.lead_time_days });
+const meetsMin = (o) => Number(o.subtotal) >= Number(st.settings.min_food_total);
 // Python weekday: Monday=0..Sunday=6; JS getDay() is Sunday=0.
 function pyWeekday(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -139,20 +144,48 @@ function defaultForm() {
     const slot = st.slots.find((s) => s.id === o.time_slot_id);
     return { type: o.event.event_type, date: o.event.event_date, slot: o.time_slot_id ?? "", adults: o.event.adults, children: o.event.children,
       veg: o.event.vegetarian_guests, vegan: o.event.vegan_guests, restricted: o.event.restricted_guests, notes: o.event.dietary_notes ?? "",
-      fulfillment: slot?.fulfillment_type ?? o.fulfillment_type, address: o.delivery_address ?? "", zone: o.delivery_zone_id ?? "",
+      fulfillment: slot?.fulfillment_type ?? o.fulfillment_type, address: o.delivery_address ?? "",
       name: o.customer.full_name, email: o.customer.email ?? "", phone: o.customer.phone ?? "" };
   }
   return { type: st.types[0] ?? "other", date: "", slot: "", adults: 10, children: 0, veg: 0, vegan: 0, restricted: 0, notes: "",
-    fulfillment: "pickup", address: "", zone: "", name: "", email: "", phone: "" };
+    fulfillment: "pickup", address: "", name: "", email: "", phone: "" };
 }
 const availableSlots = (f) => st.slots.filter((s) => s.is_active && s.fulfillment_type === f.fulfillment &&
   (!f.date || s.weekday == null || s.weekday === pyWeekday(f.date)));
+
+// ---- delivery estimate (display only; the server recalculates the fee on save)
+let quoteTimer;
+function quoteNodes(f) {
+  const q = st.quote;
+  if (!q || q.addr !== f.address.trim()) return [];
+  if (q.loading) return [h("p", { class: "hint" }, t().checking)];
+  if (q.error) return [];
+  const d = q.data;
+  if (d.too_far) return [h("p", { class: "notice warn" }, fmt(t().quoteFar, { max: num(d.max_km) })),
+    h("button", { type: "button", id: "to-pickup", onclick: () => { f.fulfillment = "pickup"; st.quote = null; if (!availableSlots(f).some((s) => s.id === f.slot)) f.slot = ""; render(); } }, t().toPickup)];
+  if (!d.found) return [h("p", { class: "notice" }, t().quoteNone)];
+  return [h("p", { class: "notice" }, fmt(t().quoteFound, { km: num(d.km), fee: money(d.fee) }))];
+}
+function queueQuote(f) { clearTimeout(quoteTimer); quoteTimer = setTimeout(() => checkQuote(f), 600); }
+async function checkQuote(f) {
+  clearTimeout(quoteTimer);
+  const addr = f.address.trim();
+  if (!addr || st.quote?.addr === addr) return;
+  st.quote = { addr, loading: true };
+  const paint = () => $("quote")?.replaceChildren(...quoteNodes(f));
+  paint();
+  try {
+    const data = await api(`/api/delivery-quote?address=${encodeURIComponent(addr)}`);
+    if (st.quote?.addr === addr) st.quote = { addr, data };
+  } catch { if (st.quote?.addr === addr) st.quote = { addr, error: true }; }
+  paint();
+}
 
 async function onDate(f, value) {
   f.date = value;
   st.errs.date = null;
   if (value) {
-    if (value < todayStr()) st.errs.date = t().datePast;
+    if (value < minDate()) st.errs.date = leadMsg();
     else {
       try {
         const a = await pub(`/api/availability?from=${value}&to=${value}`);
@@ -173,14 +206,13 @@ function viewEvent() {
   const guest = (key, label) => stepper(`f-${key}`, label, f[key], 0, 100000, (v) => { f[key] = v; clampSubsets(); render(); });
   const sub = (key, label) => stepper(`f-${key}`, `${t().of_these}: ${label}`, f[key], 0, total, (v) => { f[key] = v; render(); });
   const slots = availableSlots(f);
-  const zone = st.zones.find((z) => z.id === f.zone);
   const text = (key, label, props = {}) => field(`f-${key}`, label, h("input", { id: `f-${key}`, value: f[key], oninput: (ev) => (f[key] = ev.target.value), ...props }), { err: e[key] });
 
   const form = h("form", { class: "ep-card ep-form", novalidate: true, onsubmit: (ev) => { ev.preventDefault(); guard(() => submitEvent(f)); } },
     h("h2", {}, t().step1),
     field("f-type", t().eventType, h("select", { id: "f-type", onchange: (ev) => (f.type = ev.target.value) },
       st.types.map((k) => h("option", { value: k, selected: k === f.type }, t().event_types[k] ?? k)))),
-    field("f-date", t().date, h("input", { id: "f-date", type: "date", min: todayStr(), value: f.date, required: true, onchange: (ev) => onDate(f, ev.target.value) }), { err: e.date }),
+    field("f-date", t().date, h("input", { id: "f-date", type: "date", min: minDate(), value: f.date, required: true, onchange: (ev) => onDate(f, ev.target.value) }), { err: e.date, hint: leadMsg() }),
     field("f-fulfillment-group", t().fulfillment, h("div", { class: "pills", role: "group", id: "f-fulfillment-group", "aria-label": t().fulfillment },
       ["pickup", "delivery"].map((k) => h("button", { type: "button", id: `f-ful-${k}`, "aria-pressed": String(f.fulfillment === k),
         onclick: () => { f.fulfillment = k; if (!availableSlots(f).some((s) => s.id === f.slot)) f.slot = ""; render(); } }, t()[k])))),
@@ -188,13 +220,11 @@ function viewEvent() {
       h("option", { value: "" }, slots.length ? "—" : t().noSlots),
       slots.map((s) => h("option", { value: s.id, selected: s.id === f.slot }, `\u2066${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}\u2069`))), { err: e.slot }),
     f.fulfillment === "delivery" && h("div", {},
-      text("address", t().address, { autocomplete: "street-address", maxlength: 500 }),
-      st.zones.length
-        ? field("f-zone", t().zone, h("select", { id: "f-zone", onchange: (ev) => { f.zone = ev.target.value; render(); } },
-          h("option", { value: "" }, "—"),
-          st.zones.map((z) => h("option", { value: z.id, selected: z.id === f.zone }, `${z.name} (${money(z.fee)})`))),
-          { err: e.zone, hint: zone ? `${t().feeLabel}: ${money(zone.fee)}` : null })
-        : h("p", { class: "hint" }, t().noZones)),
+      field("f-address", t().address, h("input", { id: "f-address", value: f.address, autocomplete: "street-address", maxlength: 500, enterkeyhint: "search",
+        onkeydown: (ev) => { if (ev.key === "Enter") { ev.preventDefault(); checkQuote(f); } },
+        oninput: (ev) => { f.address = ev.target.value; queueQuote(f); }, onblur: () => checkQuote(f) }), { err: e.address }),
+      h("button", { type: "button", id: "check-delivery", onclick: () => checkQuote(f) }, t().checkDelivery),
+      h("div", { id: "quote", class: "quote", role: "status", "aria-live": "polite" }, quoteNodes(f))),
     h("div", { class: "row" }, field("f-adults", t().adults, guest("adults", t().adults)), field("f-children", t().children, guest("children", t().children))),
     e.guests && h("p", { class: "err" }, e.guests),
     h("fieldset", { class: "subset" }, h("legend", {}, t().of_these),
@@ -206,8 +236,8 @@ function viewEvent() {
     field("f-notes", t().dietaryNotes, h("textarea", { id: "f-notes", maxlength: 2000, oninput: (ev) => (f.notes = ev.target.value) }, f.notes)),
     text("name", t().fullName, { autocomplete: "name", maxlength: 200, disabled: !!st.order }),
     !st.order && h("div", {},
-      text("email", t().email, { type: "email", autocomplete: "email", maxlength: 254 }),
-      text("phone", t().phone, { type: "tel", autocomplete: "tel", maxlength: 50 }),
+      text("email", t().email, { type: "email", autocomplete: "email", autocapitalize: "none", autocorrect: "off", inputmode: "email", maxlength: 254 }),
+      text("phone", t().phone, { type: "tel", inputmode: "tel", autocomplete: "tel", maxlength: 50 }),
       h("p", { class: "hint" }, t().contactHint),
       e.contact && h("p", { class: "err" }, e.contact)),
     h("div", { class: "actions" }, h("button", { class: "primary", type: "submit", disabled: st.busy }, st.busy ? t().saving : t().next),
@@ -218,13 +248,12 @@ function viewEvent() {
 async function submitEvent(f) {
   const e = (st.errs = {});
   if (!f.date) e.date = t().datePast;
-  else if (f.date < todayStr()) e.date = t().datePast;
+  else if (f.date < minDate()) e.date = leadMsg();
   else if (st.errs.date) e.date = st.errs.date;
   if (f.adults + f.children < 1) e.guests = t().needGuests;
   if (!f.slot) e.slot = t().needSlot;
   if (f.fulfillment === "delivery") {
     if (!f.address.trim()) e.address = t().needAddress;
-    if (!f.zone) e.zone = t().needZone;
   }
   if (!f.name.trim()) e.name = t().fullName;
   if (!st.order && !f.email.trim() && !f.phone.trim()) e.contact = t().needContact;
@@ -233,7 +262,7 @@ async function submitEvent(f) {
   const event = { event_type: f.type, event_date: f.date, adults: f.adults, children: f.children, vegetarian_guests: f.veg,
     vegan_guests: f.vegan, restricted_guests: f.restricted, dietary_notes: f.notes.trim() || null };
   const common = { fulfillment_type: f.fulfillment, time_slot_id: f.slot,
-    delivery_address: delivery ? f.address.trim() : null, delivery_zone_id: delivery ? f.zone : null };
+    delivery_address: delivery ? f.address.trim() : null };
   if (st.order) {
     st.order = await orderApi("", { method: "PATCH", body: JSON.stringify({ version: st.order.version, event, ...common }) });
   } else {
@@ -285,7 +314,8 @@ function allergenPanel(d) {
     list.length
       ? h("ul", { class: "allergens" }, list.map((a) => h("li", {}, h("span", {}, a.name), h("strong", {}, statusText[a.status] ?? t().unknown))))
       : h("p", { class: "hint" }, t().unknown),
-    h("p", { class: "hint" }, t().allergenNote));
+    h("p", { class: "hint" }, t().allergenNote),
+    h("p", { class: "hint" }, t().disclaimer));
 }
 
 function dishCard(d) {
@@ -312,7 +342,7 @@ function dishCard(d) {
       h("div", { class: "stepper" },
         h("button", { type: "button", id: `dec-${d.id}`, "aria-label": `${t().dec}: ${d.name}`, disabled: qty <= 0 || st.busy,
           onclick: () => setQty(d.id, qty - step < Number(d.min_quantity ?? 0) ? 0 : qty - step) }, "−"),
-        h("input", { id: `qty-${d.id}`, type: "number", min: 0, step, value: qty, inputmode: "decimal", "aria-label": `${t().qty}: ${d.name}`,
+        h("input", { id: `qty-${d.id}`, type: "number", min: 0, step, value: qty, inputmode: step < 1 ? "decimal" : "numeric", "aria-label": `${t().qty}: ${d.name}`,
           onchange: (ev) => { const v = Number(ev.target.value); setQty(d.id, Number.isFinite(v) && v > 0 ? v : 0); } }),
         h("button", { type: "button", id: `inc-${d.id}`, "aria-label": `${t().inc}: ${d.name}`, disabled: st.busy,
           onclick: () => setQty(d.id, qty > 0 ? qty + step : first) }, "+"))));
@@ -325,26 +355,44 @@ function viewMenu() {
     h("section", { "aria-labelledby": "menu-h" },
       h("h2", { id: "menu-h" }, t().step2),
       h("div", { class: "chips", role: "group", "aria-label": t().step2 }, chip("all", t().all), st.cats.map((c) => chip(c.id, c.name || c.name_he))),
-      st.dishes.length ? h("ul", { class: "dishes", style: "list-style:none;padding:0;margin:0" }, st.dishes.map(dishCard)) : h("p", {}, t().noDishes)),
+      st.dishes.length ? h("ul", { class: "dishes", style: "list-style:none;padding:0;margin:0" }, st.dishes.map(dishCard)) : h("p", {}, t().noDishes),
+      h("p", { class: "notice", id: "disclaimer" }, t().disclaimer)),
     h("aside", {}, summaryCard(true)));
 }
 
 // ---- C3 summary (server values only)
+function minGauge(o) {
+  const min = Number(st.settings.min_food_total), sub = Number(o.subtotal);
+  return h("div", { class: "gauge" },
+    h("div", { class: "gauge-bar", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": min, "aria-valuenow": Math.min(sub, min),
+      "aria-valuetext": fmt(t().minGauge, { sub: money(o.subtotal, o.currency), min: money(min, o.currency) }) },
+      h("span", { style: `inline-size:${Math.min(100, (sub / min) * 100)}%` })),
+    h("p", { class: "hint" }, fmt(t().minGauge, { sub: money(o.subtotal, o.currency), min: money(min, o.currency) })),
+    !meetsMin(o) && h("p", { class: "hint", id: "min-need" }, t().minNeed));
+}
+const warnings = (o) => o.warnings?.includes("mixes_meat_dairy") && h("p", { class: "notice", id: "warn-mix" }, t().warnMix);
 function summaryCard(withActions) {
   const o = st.order;
+  const feeTbc = o.delivery_fee == null && o.delivery_fee_estimated;
   const lines = o.items.length
     ? h("ul", { class: "lines" }, o.items.map((i) => h("li", {},
       h("span", {}, i.name, h("small", {}, `${num(i.quantity)} × ${money(i.unit_price, o.currency)} / ${unitText(i.pricing_unit, i.unit)}`)),
       h("strong", {}, money(i.line_total, o.currency)))))
     : h("p", { class: "hint" }, t().empty);
-  return h("div", { class: "ep-card" }, h("h2", {}, t().summary), lines,
+  const body = [lines,
     h("dl", { class: "totals" },
       h("dt", {}, t().subtotal), h("dd", {}, money(o.subtotal, o.currency)),
-      h("dt", {}, t().deliveryFee), h("dd", {}, money(o.delivery_fee, o.currency)),
-      h("dt", { class: "grand" }, t().total), h("dd", { class: "grand", id: "total" }, money(o.total, o.currency))),
+      h("dt", {}, t().deliveryFee), h("dd", {}, feeTbc ? t().feeTbc : o.delivery_fee == null ? "—" : money(o.delivery_fee, o.currency)),
+      h("dt", { class: "grand" }, feeTbc ? t().totalExcl : t().total), h("dd", { class: "grand", id: "total" }, money(o.total, o.currency))),
     h("p", { class: "vat" }, t().vat),
+    ];
+  // Phone: collapsed details = compact bar (title + server total); desktop and review: open.
+  const open = !withActions || matchMedia("(min-width: 900px)").matches;
+  return h("div", { class: "ep-card sumbar" },
+    h("details", { class: "sum", open }, h("summary", {}, h("h2", {}, t().summary), h("strong", { class: "sum-total" }, money(o.total, o.currency))), body),
+    o.status === "draft" && minGauge(o), warnings(o),
     withActions && h("div", { class: "actions" },
-      h("button", { type: "button", class: "primary", id: "to-review", disabled: !o.items.length, onclick: () => { st.step = "review"; render(); } }, t().review),
+      h("button", { type: "button", class: "primary", id: "to-review", disabled: !o.items.length || !meetsMin(o), onclick: () => { st.step = "review"; render(); } }, t().review),
       h("button", { type: "button", class: "link", onclick: () => { st.form = null; st.step = "event"; render(); } }, t().edit)));
 }
 
@@ -365,7 +413,7 @@ function viewReview() {
   return h("div", { class: "ep-form" }, h("h2", {}, t().step3), eventRecap(), summaryCard(false),
     h("p", {}, t().submitNote),
     h("div", { class: "actions" },
-      h("button", { type: "button", class: "primary", id: "submit", disabled: st.busy || !st.order.items.length,
+      h("button", { type: "button", class: "primary", id: "submit", disabled: st.busy || !st.order.items.length || !meetsMin(st.order),
         onclick: () => guard(async () => { st.order = await orderApi("/submit", { method: "POST", body: JSON.stringify({ version: st.order.version }) }); render(); }) },
       st.busy ? t().submitting : t().submit),
       h("button", { type: "button", class: "link", onclick: () => { st.step = "menu"; render(); } }, t().back)),
@@ -389,8 +437,7 @@ function render() {
   const focusId = document.activeElement?.id;
   document.documentElement.lang = st.lang;
   document.documentElement.dir = DIR[st.lang];
-  document.title = t().title;
-  $("title").textContent = t().title;
+  document.title = "CaterKing";
   $("langs").replaceChildren(h("div", { class: "pills", role: "group", "aria-label": t().lang },
     Object.entries(LANGS).map(([k, label]) => h("button", { type: "button", lang: k, "aria-pressed": String(k === st.lang), onclick: () => setLang(k) }, label))));
   const step = !st.order ? "event" : st.order.status !== "draft" ? "status" : st.step;
@@ -423,11 +470,11 @@ async function boot() {
   // The id goes into API paths, so only accept a UUID (blocks crafted links like "../admin").
   if (cred && !UUID.test(cred.id)) cred = null;
   try {
-    const [types, zones, avail, config] = await Promise.all([
-      pub("/api/catalog/event-types"), pub("/api/delivery-zones").catch(() => []), pub("/api/availability"), api("/api/public-config").catch(() => ({})),
+    const [types, settings, avail, config] = await Promise.all([
+      pub("/api/catalog/event-types"), api("/api/public-settings").catch(() => st.settings), pub("/api/availability"), api("/api/public-config").catch(() => ({})),
     ]);
     st.form = null;
-    Object.assign(st, { types, zones, slots: avail.time_slots, blocked: avail.blocked_dates });
+    Object.assign(st, { types, settings, slots: avail.time_slots, blocked: avail.blocked_dates });
     if (config.supabase_url) st.imgBase = `${config.supabase_url}/storage/v1/object/public/dish-images`;
     await loadCatalog();
     if (cred) {

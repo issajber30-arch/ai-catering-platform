@@ -14,7 +14,7 @@
 .ep button { font: inherit; min-block-size: var(--ep-target); min-inline-size: var(--ep-target); border-radius: var(--ep-radius); cursor: pointer; padding-inline: var(--space-4); border: 1px solid var(--ep-border); background: #fff; color: var(--ep-text); }
 .ep button:disabled { opacity: 0.5; cursor: not-allowed; }
 .ep button.primary { background: var(--ep-primary); border-color: var(--ep-primary); color: #fff; font-weight: 600; }
-.ep button.primary:hover:not(:disabled) { background: var(--ep-primary-hover); }
+@media (hover: hover) and (pointer: fine) { .ep button.primary:hover:not(:disabled) { background: var(--ep-primary-hover); } }
 .ep button.link { border: 0; background: none; color: var(--ep-primary); text-decoration: underline; padding-inline: var(--space-2); }
 .ep button[aria-pressed="true"] { background: var(--ep-primary); border-color: var(--ep-primary); color: #fff; }
 .pills { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -86,3 +86,54 @@
 .linkbox { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .linkbox input { flex: 1 1 220px; direction: ltr; text-align: start; }
 .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+
+/* ---- Stitch look: CaterKing wordmark, circular step bar, sand cards, pill badges ---- */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.ep { min-block-size: 100dvh; }
+.ep-header { padding-block-start: env(safe-area-inset-top, 0px); }
+.wordmark { font-family: var(--ep-font-head); font-weight: 700; letter-spacing: -0.01em; font-size: 1.25rem; color: var(--ep-primary); }
+.ep-card { background: var(--ep-sand); border-radius: 1rem; }
+.dish { background: var(--ep-sand); border-radius: 1rem; }
+.badge { border-radius: 999px; font-weight: 500; }
+.price, .totals dd, .lines strong { font-variant-numeric: tabular-nums; }
+.ep h2 { font-family: var(--ep-font-head); font-size: 1.5rem; font-weight: 700; }
+.ep .ep-card h2, .ep .dish h3 { font-family: var(--ep-font-head); }
+.ep .ep-card h2 { font-size: 1.0625rem; }
+.steps { counter-reset: step; background: var(--ep-sand); border: 1px solid var(--ep-border); border-radius: 1rem; padding: var(--space-4); }
+.steps li { counter-increment: step; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); border: 0; text-align: center; font-size: 0.75rem; }
+.steps li::before { content: counter(step); display: grid; place-items: center; inline-size: 32px; block-size: 32px; border-radius: 50%; border: 1px solid var(--ep-text-3); color: var(--ep-text-3); background: var(--ep-bg); font-weight: 600; }
+.steps li[aria-current="step"]::before { background: var(--ep-primary); border-color: var(--ep-primary); color: #fff; box-shadow: 0 0 0 4px rgb(120 53 15 / 0.15); }
+
+/* delivery quote, notices, gauge */
+.quote { margin-block-start: calc(var(--space-2) * -1); margin-block-end: var(--space-4); }
+.quote button, #check-delivery { margin-block: var(--space-1) var(--space-3); }
+.notice { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-radius: var(--ep-radius); background: var(--ep-bg); border: 1px solid var(--ep-border); border-inline-start: 3px solid var(--ep-primary); font-size: 0.875rem; color: var(--ep-text-2); }
+.notice.warn { border-inline-start-color: var(--ep-pending); background: var(--ep-pending-bg); }
+.gauge-bar { block-size: 8px; border-radius: 999px; background: var(--ep-border); overflow: hidden; }
+.gauge-bar span { display: block; block-size: 100%; background: var(--ep-primary); transition: inline-size 200ms ease-out; }
+.gauge .hint { margin-block: var(--space-1) 0; }
+.sum > summary { list-style: none; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); cursor: pointer; min-block-size: var(--ep-target); }
+.sum > summary::-webkit-details-marker { display: none; }
+.sum > summary h2 { margin: 0; }
+.sum-total { font-variant-numeric: tabular-nums; color: var(--ep-primary); }
+
+/* ---- phone-native ---- */
+.ep input:not([type="checkbox"]), .ep select, .ep textarea { font-size: max(16px, 1rem); }
+.ep button, .ep [role="button"], .chips button { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; min-block-size: var(--ep-target); min-inline-size: var(--ep-target); }
+.ep button { transition: transform 120ms ease-out; }
+.ep button:active:not(:disabled) { transform: scale(0.97); }
+.ep .stepper button { inline-size: var(--ep-target); block-size: var(--ep-target); padding-inline: 0; }
+.chips { scroll-snap-type: x proximity; overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.chips::-webkit-scrollbar { display: none; }
+.chips button { scroll-snap-align: start; flex: none; }
+.ep-header-row { padding-inline: var(--space-4); }
+.ep-wrap { padding-inline-start: max(var(--space-4), env(safe-area-inset-left, 0px)); padding-inline-end: max(var(--space-4), env(safe-area-inset-right, 0px)); }
+@media (max-width: 899.98px) {
+  .ep main.ep-wrap { padding-block-end: var(--space-4); }
+  .layout aside { position: sticky; inset-block-end: 0; z-index: 10; margin-inline: calc(var(--space-4) * -1); }
+  .layout aside .ep-card { margin: 0; border-radius: 1rem 1rem 0 0; border-block-end: 0; padding: var(--space-3) var(--space-4) calc(12px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 16px rgb(28 25 23 / 0.1); max-block-size: 70dvh; overflow-y: auto; overscroll-behavior: contain; background: var(--ep-sand); }
+  .layout aside .actions { flex-wrap: nowrap; } .layout aside .actions .primary { flex: 1; }
+  .layout aside .vat { margin-block: 0 var(--space-2); }
+  .row { grid-template-columns: repeat(auto-fit, minmax(min(100%, 120px), 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .ep button { transition: none; } .ep button:active:not(:disabled) { transform: none; } .gauge-bar span { transition: none; } }
