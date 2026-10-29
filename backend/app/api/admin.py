@@ -39,9 +39,11 @@ from app.schemas.orders import (
     QuantityRuleIn,
     QuantityRuleOut,
 )
-from app.services import availability, delivery
+from app.schemas.settings import SettingsIn, SettingsOut
+from app.services import availability, delivery, geo
 from app.services import catalog as service
 from app.services import orders as order_service
+from app.services import settings as settings_service
 
 # One router-level dependency guards every admin route (a test enforces it).
 router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
@@ -213,3 +215,15 @@ def put_rule(category_id: uuid.UUID, body: QuantityRuleIn, db: Db) -> QuantityRu
 @router.delete("/quantity-rules/{category_id}", status_code=204)
 def delete_rule(category_id: uuid.UUID, db: Db) -> None:
     order_service.delete_rule(db, category_id)
+
+
+@router.get("/settings")
+def get_settings(db: Db) -> SettingsOut:
+    return settings_service.get(db)
+
+
+@router.put("/settings")
+def put_settings(
+    body: SettingsIn, db: Db, geocode: Annotated[geo.Geocoder, Depends(geo.get_geocoder)]
+) -> SettingsOut:
+    return settings_service.update(db, body.model_dump(), geocode)

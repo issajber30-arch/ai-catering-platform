@@ -15,13 +15,14 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.storage import get_uploader
 from app.main import app
+from app.services.geo import get_geocoder
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "database" / "migrations"
 SUPABASE_URL = "https://test-project.supabase.co"
 TABLES = (
     "dish_allergens, dish_dietary, dishes, dish_categories, allergens, "
     "delivery_zones, time_slots, blocked_dates, order_items, orders, events, customers, "
-    "quantity_rules"
+    "quantity_rules, geocode_cache, business_settings"
 )
 
 
@@ -42,6 +43,7 @@ def engine():
 def db(engine):
     with Session(engine) as session:
         session.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+        session.execute(text("INSERT INTO business_settings DEFAULT VALUES"))
         session.execute(text("INSERT INTO allergens (name) VALUES ('peanuts'), ('milk')"))
         session.commit()
         yield session
@@ -81,12 +83,24 @@ def uploads():
 
 
 @pytest.fixture
-def client(db, uploads):
+def places():
+    """Fake geocoder data: address -> (lat, lon). Addresses not listed are 'not found'."""
+    return {}
+
+
+@pytest.fixture
+def geo_calls():
+    return []
+
+
+@pytest.fixture
+def client(db, uploads, places, geo_calls):
     def fake_uploader():
         return lambda data, kind: uploads.append((kind, len(data))) or f"fake-{len(uploads)}.{kind}"
 
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_uploader] = fake_uploader
+    app.dependency_overrides[get_geocoder] = lambda: lambda a: geo_calls.append(a) or places.get(a)
     yield TestClient(app)
     app.dependency_overrides.clear()
 

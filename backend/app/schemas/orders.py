@@ -116,7 +116,7 @@ class EventOut(Out):
 class PricingOut(BaseModel):
     items: list[ItemOut]
     subtotal: Decimal
-    delivery_fee: Decimal
+    delivery_fee: Decimal | None  # null: address not found, fee confirmed by the business
     total: Decimal
     currency: str
 
@@ -135,6 +135,9 @@ class OrderOut(PricingOut):
     submitted_at: dt.datetime | None
     decided_at: dt.datetime | None
     decision_note: str | None
+    warnings: list[str]
+    delivery_km: Decimal | None
+    delivery_fee_estimated: bool
 
 
 class OrderCreated(OrderOut):

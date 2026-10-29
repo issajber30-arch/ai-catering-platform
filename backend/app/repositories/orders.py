@@ -3,12 +3,13 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.catalog import Dish
 from app.models.orders import Order, OrderItem, OrderStatus, QuantityRule
 
 
 def _orders():
     return select(Order).options(
-        selectinload(Order.items).selectinload(OrderItem.dish),
+        selectinload(Order.items).selectinload(OrderItem.dish).selectinload(Dish.dietary),
         selectinload(Order.customer),
         selectinload(Order.event),
         selectinload(Order.zone),

@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Depends, Header
 
 from app.api.catalog import Lang
 from app.core.db import Db
@@ -17,10 +17,12 @@ from app.schemas.orders import (
     SubmitIn,
 )
 from app.services import orders as service
+from app.services.geo import Geocoder, get_geocoder
 
 router = APIRouter(prefix="/api")
 # Private link token issued once by POST /api/orders; wrong token and unknown id both give 404.
 Token = Annotated[str | None, Header(alias="X-Order-Token")]
+Geo = Annotated[Geocoder, Depends(get_geocoder)]
 
 
 @router.get("/catalog/event-types")
@@ -30,8 +32,8 @@ def event_types() -> list[str]:
 
 
 @router.post("/orders", status_code=201)
-def create_order(body: OrderCreate, db: Db, lang: Lang = "he") -> OrderCreated:
-    return service.create_order(db, body, lang)
+def create_order(body: OrderCreate, db: Db, geocode: Geo, lang: Lang = "he") -> OrderCreated:
+    return service.create_order(db, body, lang, geocode)
 
 
 @router.get("/orders/{order_id}")
@@ -41,9 +43,10 @@ def get_order(order_id: uuid.UUID, db: Db, token: Token = None, lang: Lang = "he
 
 @router.patch("/orders/{order_id}")
 def patch_order(
-    order_id: uuid.UUID, body: OrderPatch, db: Db, token: Token = None, lang: Lang = "he"
-) -> OrderOut:
-    return service.patch_order(db, order_id, token, body, lang)
+    order_id: uuid.UUID, body: OrderPatch, db: Db, geocode: Geo, token: Token = None,
+    lang: Lang = "he",
+) -> OrderOut:  # fmt: skip
+    return service.patch_order(db, order_id, token, body, lang, geocode)
 
 
 @router.put("/orders/{order_id}/items/{dish_id}")

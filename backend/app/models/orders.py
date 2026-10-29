@@ -78,6 +78,10 @@ class Order(Base):
     requested_at: Mapped[dt.datetime]
     delivery_address: Mapped[str | None] = mapped_column(Text)
     delivery_zone_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("delivery_zones.id"))
+    delivery_km: Mapped[Decimal | None] = mapped_column(Numeric(6, 2))
+    delivery_lat: Mapped[float | None]
+    delivery_lon: Mapped[float | None]
+    delivery_fee_estimated: Mapped[bool] = mapped_column(default=False)
     currency: Mapped[str] = mapped_column(CHAR(3))
     subtotal: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     delivery_fee: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))

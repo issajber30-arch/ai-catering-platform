@@ -2,7 +2,7 @@ import datetime as dt
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.core.db import Db
 from app.models.catalog import KashrutClass
@@ -10,8 +10,10 @@ from app.repositories import catalog as repo
 from app.repositories import logistics as lrepo
 from app.schemas.catalog import CategoryOut, DishDetailOut, DishOut
 from app.schemas.logistics import AvailabilityOut, PublicZoneOut
-from app.services import availability
+from app.schemas.settings import DeliveryQuoteOut, PublicSettingsOut
+from app.services import availability, geo
 from app.services import catalog as service
+from app.services import settings as settings_service
 
 router = APIRouter(prefix="/api")
 Lang = Literal["he", "ar", "en"]
@@ -55,3 +57,24 @@ def get_availability(
 @router.get("/delivery-zones")
 def delivery_zones(db: Db) -> list[PublicZoneOut]:
     return lrepo.active_zones(db)
+
+
+@router.get("/public-settings")
+def public_settings(db: Db) -> PublicSettingsOut:
+    s = settings_service.get(db)
+    return PublicSettingsOut(
+        lead_time_days=s.lead_time_days, min_food_total=s.min_food_total, max_km=s.delivery_max_km
+    )
+
+
+@router.get("/delivery-quote")
+def delivery_quote(
+    db: Db,
+    address: Annotated[str, Query(min_length=1, max_length=500)],
+    geocode: Annotated[geo.Geocoder, Depends(geo.get_geocoder)],
+) -> DeliveryQuoteOut:
+    s = settings_service.get(db)
+    q = geo.quote(db, geocode, address, s)
+    return DeliveryQuoteOut(
+        found=q.found, km=q.km, fee=q.fee, max_km=s.delivery_max_km, too_far=q.too_far
+    )

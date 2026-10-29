@@ -3,11 +3,19 @@ import uuid
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import text
 
 from .test_security import error_code
 
 TODAY = dt.date.today()
 FUTURE = TODAY + dt.timedelta(days=10)
+
+
+@pytest.fixture(autouse=True)
+def no_minimum(db):
+    """Most tests use small orders; the food minimum has its own test."""
+    db.execute(text("UPDATE business_settings SET min_food_total = 0"))
+    db.commit()
 
 
 @pytest.fixture
@@ -119,20 +127,20 @@ def test_items_pricing_and_version(client, make_dish, order, zone, slot):
     assert removed["subtotal"] == "360.00" and removed["version"] == changed["version"] + 1
 
 
-def test_delivery_fee_in_total(client, make_dish, order, zone, slot, admin):
+def test_delivery_fee_legacy_zone(client, make_dish, order, zone, slot, admin, db):
+    """Orders priced by zone before distance pricing keep their zone fee."""
     admin.patch(f"/api/admin/time-slots/{slot['id']}", json={"fulfillment_type": "delivery"})
     patched = client.patch(
         f"/api/orders/{order['id']}",
-        json={
-            "version": 1,
-            "fulfillment_type": "delivery",
-            "delivery_address": "1 Herzl St",
-            "delivery_zone_id": zone["id"],
-        },
+        json={"version": 1, "fulfillment_type": "delivery", "delivery_address": "1 Herzl St"},
         headers=hdr(order),
+    ).json()
+    db.execute(
+        text("UPDATE orders SET delivery_fee_estimated = false, delivery_zone_id = :z"),
+        {"z": zone["id"]},
     )
-    assert patched.status_code == 200, patched.text
-    done = put_item(client, patched.json(), make_dish(unit_price="100.00"), "1").json()
+    db.commit()
+    done = put_item(client, patched, make_dish(unit_price="100.00"), "1").json()
     assert (done["subtotal"], done["delivery_fee"], done["total"]) == ("100.00", "25.00", "125.00")
 
 
@@ -281,6 +289,11 @@ def test_quantity_rule_admin(admin, category):
     assert admin.delete(url).status_code == 404
 
 
+def set_settings(admin, **changes):
+    row = admin.get("/api/admin/settings").json() | changes
+    return admin.put("/api/admin/settings", json=row)
+
+
 def test_date_rules(client, admin, body, slot):
     def post(**event):
         return client.post("/api/orders", json=body | {"event": body["event"] | event})
@@ -295,7 +308,14 @@ def test_date_rules(client, admin, body, slot):
         json=body
         | {"event": body["event"] | {"event_date": str(TODAY)}, "time_slot_id": early["id"]},
     )
-    assert started.status_code == 422
+    assert started.status_code == 422 and "notice" in started.json()["error"]["message"]
+    set_settings(admin, lead_time_days=0)
+    started = client.post(
+        "/api/orders",
+        json=body
+        | {"event": body["event"] | {"event_date": str(TODAY)}, "time_slot_id": early["id"]},
+    )
+    assert started.status_code == 422 and "already started" in started.json()["error"]["message"]
     admin.post("/api/admin/blocked-dates", json={"date": str(FUTURE)})
     blocked = post()
     assert blocked.status_code == 422 and error_code(blocked) == "validation_error"
@@ -316,19 +336,13 @@ def test_slot_rules(client, admin, body, slot):
     assert client.post("/api/orders", json=delivery).status_code == 422  # wrong slot type + no zone
 
 
-def test_delivery_requires_address_and_active_zone(client, admin, body, zone, slot):
+def test_delivery_requires_address(client, admin, body, slot):
     admin.patch(f"/api/admin/time-slots/{slot['id']}", json={"fulfillment_type": "delivery"})
     d = body | {"fulfillment_type": "delivery"}
     assert client.post("/api/orders", json=d).status_code == 422
-    assert client.post("/api/orders", json=d | {"delivery_zone_id": zone["id"]}).status_code == 422
-    assert client.post("/api/orders", json=d | {"delivery_address": "a"}).status_code == 422
-    full = d | {"delivery_address": "1 Herzl", "delivery_zone_id": zone["id"]}
-    assert client.post("/api/orders", json=full).status_code == 201
-    admin.patch(f"/api/admin/delivery-zones/{zone['id']}", json={"is_active": False})
-    assert client.post("/api/orders", json=full).status_code == 422
-    admin.patch(f"/api/admin/delivery-zones/{zone['id']}", json={"is_active": True})
-    assert client.post("/api/orders", json=full | {"delivery_zone_id": str(uuid.uuid4())}
-                       ).status_code == 422  # fmt: skip
+    assert client.post("/api/orders", json=d | {"delivery_address": "   "}).status_code == 422
+    assert client.post("/api/orders", json=d | {"delivery_address": "x" * 501}).status_code == 422
+    assert client.post("/api/orders", json=d | {"delivery_address": "a"}).status_code == 201
 
 
 def test_guest_validation(client, body):
@@ -411,3 +425,219 @@ def test_public_delivery_zones_hide_inactive_and_definition(client, admin, zone)
     assert client.get("/api/delivery-zones").json() == [
         {"id": zone["id"], "name": "Haifa", "fee": "25.00"}
     ]
+
+
+# ---- business rules (lead time, minimum, kashrut warning, distance fee)
+KITCHEN = (31.7683, 35.2137)
+NEAR = (KITCHEN[0] + 0.1619, KITCHEN[1])  # ~18.0 km north
+FAR = (KITCHEN[0] + 0.3640, KITCHEN[1])  # ~40.5 km north
+
+
+def post_on(client, body, day):
+    return client.post(
+        "/api/orders", json=body | {"event": body["event"] | {"event_date": str(day)}}
+    )
+
+
+def test_lead_time(client, body):
+    refused = post_on(client, body, TODAY + dt.timedelta(days=6))
+    assert refused.status_code == 422
+    assert refused.json()["error"]["message"] == "Events need at least 7 days' notice"
+    assert post_on(client, body, TODAY + dt.timedelta(days=7)).status_code == 201
+
+
+def test_food_minimum(client, admin, make_dish, order):
+    set_settings(admin, min_food_total="500.00")
+    cheap = make_dish(unit_price="499.99")
+    current = put_item(client, order, cheap, "1").json()
+    refused = submit(client, current, current["version"])
+    assert refused.status_code == 422
+    assert refused.json()["error"]["message"] == "Food total must reach ₪500"
+    ok = put_item(client, current, make_dish(name_he="x", unit_price="0.01"), "1").json()
+    assert ok["subtotal"] == "500.00"
+    assert submit(client, ok, ok["version"]).status_code == 200
+
+
+def test_minimum_excludes_delivery(client, admin, make_dish, order, slot, places):
+    set_settings(admin, min_food_total="500.00")
+    admin.patch(f"/api/admin/time-slots/{slot['id']}", json={"fulfillment_type": "delivery"})
+    places["Near"] = NEAR
+    patched = client.patch(
+        f"/api/orders/{order['id']}",
+        json={"version": 1, "fulfillment_type": "delivery", "delivery_address": "Near"},
+        headers=hdr(order),
+    ).json()
+    current = put_item(client, patched, make_dish(unit_price="450.00"), "1").json()
+    assert current["delivery_fee"] == "122.00" and current["total"] == "572.00"
+    assert submit(client, current, current["version"]).status_code == 422
+
+
+def test_kashrut_warning(client, admin, make_dish, order):
+    def dish(name, kashrut):
+        d = make_dish(name_he=name)
+        body = {"kashrut_class": kashrut, "allergens": []}
+        assert admin.put(f"/api/admin/dishes/{d['id']}/dietary", json=body).status_code == 200
+        return d
+
+    meat, dairy, pareve = dish("m", "meat"), dish("d", "dairy"), dish("p", "pareve")
+    unknown = make_dish(name_he="u")  # no dietary row at all
+    cur = put_item(client, order, meat).json()
+    assert cur["warnings"] == []
+    cur = put_item(client, cur, pareve).json()
+    cur = put_item(client, cur, unknown).json()
+    assert cur["warnings"] == []
+    cur = put_item(client, cur, dairy).json()
+    assert cur["warnings"] == ["mixes_meat_dairy"]
+    cur = client.delete(
+        f"/api/orders/{order['id']}/items/{meat['id']}?version={cur['version']}", headers=hdr(order)
+    ).json()
+    assert cur["warnings"] == []
+
+
+def test_fee_and_distance_maths():
+    from decimal import Decimal as D
+
+    from app.services.geo import fee_for, haversine_km
+
+    assert haversine_km(*KITCHEN, *NEAR) == D("18.0")
+    assert fee_for(D("18.0"), D("50"), D("4")) == D("122.00")
+    assert fee_for(D("0.1"), D("50.00"), D("4.00")) == D("50.40")
+    assert fee_for(D("1.1"), D("0"), D("0.05")) == D("0.06")  # 0.055 rounds half up
+
+
+def delivery_order(client, admin, body, slot, address):
+    admin.patch(f"/api/admin/time-slots/{slot['id']}", json={"fulfillment_type": "delivery"})
+    response = client.post(
+        "/api/orders", json=body | {"fulfillment_type": "delivery", "delivery_address": address}
+    )
+    if response.status_code == 201:
+        TOKENS[response.json()["id"]] = response.json()["access_token"]
+    return response
+
+
+def test_delivery_fee_from_distance(client, admin, body, slot, places):
+    places["Near"] = NEAR
+    created = delivery_order(client, admin, body, slot, "Near").json()
+    assert (created["delivery_km"], created["delivery_fee"]) == ("18.00", "122.00")
+    assert created["delivery_fee_estimated"] is False and created["total"] == "122.00"
+    back = client.patch(
+        f"/api/orders/{created['id']}",
+        json={"version": 1, "fulfillment_type": "pickup"},
+        headers={"X-Order-Token": created["access_token"]},
+    )
+    # pickup is served by a delivery slot only if it matches; the slot type is wrong here
+    assert back.status_code == 422
+
+
+def test_pickup_clears_distance(client, admin, body, slot, places, db):
+    places["Near"] = NEAR
+    pickup_slot = slot
+    delivery_slot = admin.post(
+        "/api/admin/time-slots",
+        json={"fulfillment_type": "delivery", "start_time": "10:00", "end_time": "12:00"},
+    ).json()
+    created = client.post(
+        "/api/orders",
+        json=body
+        | {"fulfillment_type": "delivery", "delivery_address": "Near",
+           "time_slot_id": delivery_slot["id"]},
+    ).json()  # fmt: skip
+    assert created["delivery_km"] == "18.00"
+    back = client.patch(
+        f"/api/orders/{created['id']}",
+        json={"version": 1, "fulfillment_type": "pickup", "time_slot_id": pickup_slot["id"]},
+        headers={"X-Order-Token": created["access_token"]},
+    ).json()
+    assert (back["delivery_km"], back["delivery_fee"], back["delivery_address"]) == (
+        None, "0.00", None,
+    )  # fmt: skip
+    assert back["delivery_fee_estimated"] is False
+
+
+def test_too_far(client, admin, body, slot, places):
+    places["Far"] = FAR
+    refused = delivery_order(client, admin, body, slot, "Far")
+    assert refused.status_code == 422
+    assert refused.json()["error"]["message"] == (
+        "Delivery isn't available this far (max 40 km); choose pickup."
+    )
+    quote = client.get("/api/delivery-quote", params={"address": "Far"}).json()
+    assert quote["found"] and quote["too_far"] and quote["fee"] is None
+
+
+def test_max_km_boundary(admin, client, places):
+    places["Near"] = NEAR
+    set_settings(admin, delivery_max_km="18.00")
+    assert client.get("/api/delivery-quote", params={"address": "Near"}).json()["too_far"] is False
+    set_settings(admin, delivery_max_km="17.90")
+    assert client.get("/api/delivery-quote", params={"address": "Near"}).json()["too_far"] is True
+
+
+def test_address_not_found_is_estimated(client, admin, make_dish, body, slot):
+    created = delivery_order(client, admin, body, slot, "Nowhere 1").json()
+    assert created["delivery_fee"] is None and created["delivery_fee_estimated"] is True
+    assert created["delivery_km"] is None
+    token = {"X-Order-Token": created["access_token"]}
+    current = put_item(client, created, make_dish(unit_price="100.00"), "1").json()
+    assert current["delivery_fee"] is None and current["total"] == "100.00"
+    done = submit(client, current, current["version"])
+    assert done.status_code == 200 and done.json()["delivery_fee"] is None
+    assert done.json()["delivery_fee_estimated"] is True
+    assert client.get(f"/api/orders/{created['id']}", headers=token).json()["total"] == "100.00"
+
+
+def test_geocode_cache(client, places, geo_calls):
+    places["Near"] = NEAR
+    first = client.get("/api/delivery-quote", params={"address": "Near"}).json()
+    again = client.get("/api/delivery-quote", params={"address": "  NEAR "}).json()
+    assert first == again and first["fee"] == "122.00" and len(geo_calls) == 1
+    client.get("/api/delivery-quote", params={"address": "Nowhere"})
+    client.get("/api/delivery-quote", params={"address": "nowhere"})  # not-found is cached too
+    assert len(geo_calls) == 2
+
+
+def test_delivery_quote_validation(client):
+    for address in ("", "x" * 501):
+        assert client.get("/api/delivery-quote", params={"address": address}).status_code == 422
+    assert client.get("/api/delivery-quote").status_code == 422
+    blank = client.get("/api/delivery-quote", params={"address": "   "}).json()
+    assert blank["found"] is False
+
+
+def test_public_settings(client):
+    assert client.get("/api/public-settings").json() == {
+        "lead_time_days": 7, "min_food_total": "0.00", "max_km": "40.00",
+    }  # fmt: skip
+
+
+def test_admin_settings(admin, client, places, geo_calls):
+    got = admin.get("/api/admin/settings").json()
+    assert got["lead_time_days"] == 7 and got["delivery_base_fee"] == "50.00"
+    assert got["kitchen_address"] == "Jerusalem" and got["kitchen_lat"] == 31.7683
+    ok = set_settings(admin, lead_time_days=3, delivery_per_km="5.50")
+    assert ok.status_code == 200 and ok.json()["delivery_per_km"] == "5.50"
+    assert geo_calls == []  # unchanged kitchen address is not geocoded
+    for bad in (
+        {"lead_time_days": -1}, {"lead_time_days": 366}, {"min_food_total": "-1"},
+        {"delivery_base_fee": "-0.01"}, {"delivery_per_km": "-1"}, {"delivery_max_km": "-1"},
+        {"delivery_max_km": "501"}, {"kitchen_address": ""}, {"kitchen_address": "x" * 301},
+        {"lead_time_days": "abc"},
+    ):  # fmt: skip
+        assert set_settings(admin, **bad).status_code == 422, bad
+    assert admin.put("/api/admin/settings", json={"lead_time_days": 1}).status_code == 422
+    assert admin.get("/api/admin/settings").json()["lead_time_days"] == 3
+
+
+def test_admin_settings_kitchen_geocode(admin, places):
+    places["Haifa"] = (32.794, 34.9896)
+    ok = set_settings(admin, kitchen_address="Haifa")
+    assert ok.status_code == 200 and ok.json()["kitchen_lat"] == 32.794
+    failed = set_settings(admin, kitchen_address="Atlantis", lead_time_days=1)
+    assert failed.status_code == 422
+    after = admin.get("/api/admin/settings").json()
+    assert (after["kitchen_address"], after["lead_time_days"]) == ("Haifa", 7)  # nothing saved
+
+
+def test_admin_order_detail_has_rule_fields(admin, client, order):
+    detail = admin.get(f"/api/admin/orders/{order['id']}").json()
+    assert detail["warnings"] == [] and detail["delivery_fee_estimated"] is False

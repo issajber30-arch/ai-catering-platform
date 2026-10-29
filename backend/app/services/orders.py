@@ -10,12 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.models.catalog import Dish, DishCategory
-from app.models.logistics import DeliveryZone, FulfillmentType, TimeSlot
+from app.models.catalog import Dish, DishCategory, KashrutClass
+from app.models.logistics import FulfillmentType, TimeSlot
 from app.models.orders import Customer, Event, Order, OrderItem, OrderStatus, QuantityRule
 from app.repositories import catalog as crepo
 from app.repositories import logistics as lrepo
 from app.repositories import orders as repo
+from app.repositories import settings as srepo
 from app.schemas.orders import (
     ItemOut,
     OrderCreate,
@@ -27,8 +28,9 @@ from app.schemas.orders import (
     QuantityRuleIn,
     RecommendationOut,
 )
-from app.services import pricing, quantities
+from app.services import geo, pricing, quantities
 from app.services.catalog import need
+from app.services.settings import num
 
 
 def _hash(token: str) -> str:
@@ -60,10 +62,14 @@ def _at(day: dt.date, time: dt.time) -> dt.datetime:
     return dt.datetime.combine(day, time, tzinfo=ZoneInfo(get_settings().business_timezone))
 
 
-def check_logistics(db: Session, event_date, ftype, slot_id, address, zone_id) -> TimeSlot:
+def check_logistics(db: Session, event_date, ftype, slot_id, address) -> TimeSlot:
     """Weekday convention: TimeSlot.weekday follows date.weekday(), Monday=0 .. Sunday=6."""
-    if event_date < dt.datetime.now(ZoneInfo(get_settings().business_timezone)).date():
+    today = dt.datetime.now(ZoneInfo(get_settings().business_timezone)).date()
+    if event_date < today:
         raise AppError(422, "Event date is in the past")
+    lead = srepo.get(db).lead_time_days
+    if event_date < today + dt.timedelta(days=lead):
+        raise AppError(422, f"Events need at least {lead} days' notice")
     if lrepo.blocked_between(db, event_date, event_date):
         raise AppError(422, "Event date is not available")
     slot = crepo.get(db, TimeSlot, slot_id) if slot_id else None
@@ -74,18 +80,34 @@ def check_logistics(db: Session, event_date, ftype, slot_id, address, zone_id) -
     if _at(event_date, slot.start_time) <= dt.datetime.now(dt.UTC):
         raise AppError(422, "Time slot has already started")
     if ftype == FulfillmentType.delivery:
-        zone = crepo.get(db, DeliveryZone, zone_id) if zone_id else None
-        if not address or zone is None or not zone.is_active:
-            raise AppError(422, "Delivery needs an address and an active delivery zone")
+        if not address:
+            raise AppError(422, "Delivery needs an address")
     return slot
 
 
-def create_order(db: Session, body: OrderCreate, lang: str) -> OrderCreated:
+def _delivery(db: Session, geocode, ftype, address) -> dict:
+    """Order columns for the delivery distance and fee; pickup clears them."""
+    if ftype != FulfillmentType.delivery:
+        return dict(delivery_km=None, delivery_lat=None, delivery_lon=None, delivery_fee=None,
+                    delivery_fee_estimated=False)  # fmt: skip
+    s = srepo.get(db)
+    q = geo.quote(db, geocode, address, s)
+    if q.too_far:
+        raise AppError(
+            422, f"Delivery isn't available this far (max {num(s.delivery_max_km)} km); "
+            "choose pickup."
+        )  # fmt: skip
+    return dict(delivery_km=q.km, delivery_lat=q.lat, delivery_lon=q.lon, delivery_fee=q.fee,
+                delivery_fee_estimated=not q.found)  # fmt: skip
+
+
+def create_order(db: Session, body: OrderCreate, lang: str, geocode) -> OrderCreated:
     # shortcut: no rate limit on order creation; add at proxy/app before public launch (Phase 6).
     slot = check_logistics(
         db, body.event.event_date, body.fulfillment_type, body.time_slot_id,
-        body.delivery_address, body.delivery_zone_id,
+        body.delivery_address,
     )  # fmt: skip
+    fields = _delivery(db, geocode, body.fulfillment_type, body.delivery_address)
     customer = Customer(**body.customer.model_dump())
     db.add(customer)
     db.flush()
@@ -106,6 +128,7 @@ def create_order(db: Session, body: OrderCreate, lang: str) -> OrderCreated:
             delivery_address=body.delivery_address if delivery else None,
             delivery_zone_id=body.delivery_zone_id if delivery else None,
             currency=get_settings().default_currency,
+            **fields,
         ),
     )
     return OrderCreated(**order_out(order, lang).model_dump(), access_token=token)
@@ -119,15 +142,21 @@ def _priced(order: Order, lang: str) -> PricingOut:
     draft = order.status == OrderStatus.draft
     items = sorted(order.items, key=lambda i: i.dish.name_he)
     if draft:
-        zone_fee = order.zone.fee if order.zone and order.fulfillment_type == "delivery" else None
+        delivery = order.fulfillment_type == FulfillmentType.delivery
+        fee = order.delivery_fee  # computed from distance when the order was last saved
+        if delivery and order.delivery_km is None and not order.delivery_fee_estimated:
+            fee = order.zone.fee if order.zone else None  # older orders priced by zone
         t = pricing.price(
-            [pricing.Line(i.quantity, i.dish.unit_price, i.dish.currency) for i in items], zone_fee
+            [pricing.Line(i.quantity, i.dish.unit_price, i.dish.currency) for i in items], fee
         )
         rows = [
             (i, i.dish.pricing_unit, i.dish.unit_price, lt)
             for i, lt in zip(items, t.line_totals, strict=True)
         ]
-        totals = (t.subtotal, t.delivery_fee, t.total, t.currency or order.currency)
+        totals = (
+            t.subtotal, None if order.delivery_fee_estimated else t.delivery_fee, t.total,
+            t.currency or order.currency,
+        )  # fmt: skip
     else:
         rows = [
             (i, i.snapshot_pricing_unit, i.snapshot_unit_price, i.snapshot_line_total)
@@ -147,9 +176,17 @@ def _priced(order: Order, lang: str) -> PricingOut:
                       currency=totals[3])  # fmt: skip
 
 
+def _warnings(order: Order) -> list[str]:
+    kinds = {i.dish.dietary.kashrut_class for i in order.items if i.dish.dietary}  # null = unknown
+    both = KashrutClass.meat in kinds and KashrutClass.dairy in kinds
+    return ["mixes_meat_dairy"] if both else []
+
+
 def order_out(order: Order, lang: str = "he") -> OrderOut:
     return OrderOut(
         **_priced(order, lang).model_dump(),
+        warnings=_warnings(order), delivery_km=order.delivery_km,
+        delivery_fee_estimated=order.delivery_fee_estimated,
         id=order.id, status=order.status, version=order.version, customer=order.customer,
         event=order.event, fulfillment_type=order.fulfillment_type,
         time_slot_id=order.time_slot_id, requested_at=order.requested_at,
@@ -167,7 +204,7 @@ def get_pricing(db: Session, order_id, token, lang: str) -> PricingOut:
     return _priced(customer_order(db, order_id, token), lang)
 
 
-def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str) -> OrderOut:
+def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str, geocode) -> OrderOut:
     order = _draft(db, order_id, token, body.version)
     sent = body.model_fields_set
     event = body.event.model_dump() if body.event else {}
@@ -176,14 +213,18 @@ def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str) -> Or
     zone_id = body.delivery_zone_id if "delivery_zone_id" in sent else order.delivery_zone_id
     slot = check_logistics(
         db, event.get("event_date", order.event.event_date), ftype,
-        body.time_slot_id or order.time_slot_id, address, zone_id,
+        body.time_slot_id or order.time_slot_id, address,
     )  # fmt: skip
+    changed = ftype != order.fulfillment_type or address != order.delivery_address
+    fields = _delivery(db, geocode, ftype, address) if changed else {}
     for k, v in event.items():
         setattr(order.event, k, v)
     delivery = ftype == FulfillmentType.delivery
     order.fulfillment_type, order.time_slot_id = ftype, slot.id
     order.delivery_address = address if delivery else None
     order.delivery_zone_id = zone_id if delivery else None
+    for k, v in fields.items():
+        setattr(order, k, v)
     order.requested_at = _at(order.event.event_date, slot.start_time)
     order.version += 1
     return order_out(_save(db, order), lang)
@@ -245,9 +286,12 @@ def submit(db: Session, order_id, token, version, lang) -> OrderOut:
         raise AppError(422, "Some dishes are below their minimum quantity")
     check_logistics(
         db, order.event.event_date, order.fulfillment_type, order.time_slot_id,
-        order.delivery_address, order.delivery_zone_id,
+        order.delivery_address,
     )  # fmt: skip
     priced = _priced(order, lang)
+    minimum = srepo.get(db).min_food_total
+    if priced.subtotal < minimum:  # delivery fee is not counted
+        raise AppError(422, f"Food total must reach ₪{num(minimum)}")
     lines = {line.dish_id: line for line in priced.items}
     for item in order.items:
         line = lines[item.dish_id]
@@ -256,7 +300,9 @@ def submit(db: Session, order_id, token, version, lang) -> OrderOut:
         item.snapshot_unit_price = line.unit_price
         item.snapshot_line_total = line.line_total
     order.subtotal, order.delivery_fee, order.total = (
-        priced.subtotal, priced.delivery_fee, priced.total,
+        priced.subtotal,
+        priced.delivery_fee,
+        priced.total,
     )  # fmt: skip
     order.currency = priced.currency
     order.status = OrderStatus.pending_approval
