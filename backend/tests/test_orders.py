@@ -403,3 +403,11 @@ def test_submit_rechecks_min_quantity(client, make_dish, admin, order):
 
 def test_requested_at_has_timezone(order):
     assert order["requested_at"].endswith(("+02:00", "+03:00", "Z", "+00:00"))
+
+
+def test_public_delivery_zones_hide_inactive_and_definition(client, admin, zone):
+    off = admin.post("/api/admin/delivery-zones", json={"name": "Eilat", "fee": "90.00"}).json()
+    admin.patch(f"/api/admin/delivery-zones/{off['id']}", json={"is_active": False})
+    assert client.get("/api/delivery-zones").json() == [
+        {"id": zone["id"], "name": "Haifa", "fee": "25.00"}
+    ]

@@ -7,8 +7,9 @@ from fastapi import APIRouter, Query
 from app.core.db import Db
 from app.models.catalog import KashrutClass
 from app.repositories import catalog as repo
+from app.repositories import logistics as lrepo
 from app.schemas.catalog import CategoryOut, DishDetailOut, DishOut
-from app.schemas.logistics import AvailabilityOut
+from app.schemas.logistics import AvailabilityOut, PublicZoneOut
 from app.services import availability
 from app.services import catalog as service
 
@@ -49,3 +50,8 @@ def get_availability(
     end: Annotated[dt.date | None, Query(alias="to")] = None,
 ) -> AvailabilityOut:
     return availability.availability(db, start, end)
+
+
+@router.get("/delivery-zones")
+def delivery_zones(db: Db) -> list[PublicZoneOut]:
+    return lrepo.active_zones(db)
