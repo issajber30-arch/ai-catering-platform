@@ -324,7 +324,11 @@ async function orderDetail(id, refresh) {
       h("td", {}, i.name),
       h("td", {}, `${i.quantity} × ${money(i.unit_price, o.currency)}${i.unit ? ` (${i.unit})` : ""}`),
       h("td", {}, money(i.line_total, o.currency))))))),
-    dl([["Subtotal", money(o.subtotal, o.currency)], ["Delivery fee", money(o.delivery_fee, o.currency)], ["Total", money(o.total, o.currency)]]),
+    o.warnings?.includes("mixes_meat_dairy") ? h("p", { class: "notice", role: "note" }, "Order mixes meat and dairy dishes") : null,
+    dl([...(o.delivery_km != null ? [["Distance", `${Number(o.delivery_km)} km`]] : []), ["Subtotal", money(o.subtotal, o.currency)],
+      ["Delivery fee", o.delivery_fee == null ? (o.delivery_fee_estimated ? "To be confirmed (address not found)" : "—")
+        : o.delivery_fee_estimated ? `${money(o.delivery_fee, o.currency)} (estimate)` : money(o.delivery_fee, o.currency)],
+      ["Total", money(o.total, o.currency)]]),
     h("p", { class: "hint" }, "Prices include VAT."),
     o.status === "pending_approval"
       ? h("div", {}, h("label", {}, "Note (optional, up to 1000 characters)", note), actions)
@@ -358,6 +362,29 @@ async function showRules(tabs) {
       h("tbody", {}, ...rows))))));
 }
 
+// ---- settings
+async function showSettings(tabs) {
+  const st = await api("/api/admin/settings");
+  const f = (name, label, unit, attrs) => [name, h("label", {}, `${label} (${unit})`, h("input", { name, required: true, value: st[name] ?? "", ...attrs }))];
+  const num = (name, label, unit, max) => f(name, label, unit, { type: "number", min: "0", step: name === "lead_time_days" ? "1" : "0.01", ...(max ? { max } : {}) });
+  const fields = Object.fromEntries([num("lead_time_days", "Notice needed", "days", "365"), num("min_food_total", "Food minimum", "₪"),
+    num("delivery_base_fee", "Delivery base fee", "₪"), num("delivery_per_km", "Per km", "₪"), num("delivery_max_km", "Max distance", "km", "500"),
+    f("kitchen_address", "Kitchen address", "text", { type: "text", maxlength: 300 })]);
+  const form = h("form", { class: "card", onsubmit: (ev) => {
+    ev.preventDefault();
+    run(async () => {
+      const body = {};
+      for (const [k, label] of Object.entries(fields)) body[k] = label.querySelector("input").value.trim();
+      body.lead_time_days = Number(body.lead_time_days);
+      await api("/api/admin/settings", { method: "PUT", body: JSON.stringify(body) });
+      await showSettings(tabs); say("Settings saved.");
+    });
+  } }, ...Object.values(fields),
+    h("p", { class: "hint" }, `Located at ${st.kitchen_lat}, ${st.kitchen_lon}`),
+    h("button", { class: "primary", type: "submit" }, "Save"));
+  app.replaceChildren(tabs, h("section", {}, h("h2", {}, "Settings"), form));
+}
+
 // ---- shell
 async function showDashboard() {
   state.config ??= await api("/api/public-config");
@@ -366,12 +393,14 @@ async function showDashboard() {
     for (const b of tabs.children) b.setAttribute("aria-pressed", String(b.dataset.key === key));
     if (key === "orders") await showOrders(tabs);
     else if (key === "serving-rules") await showRules(tabs);
+    else if (key === "settings") await showSettings(tabs);
     else await showResource(key, tabs);
   });
   for (const [key, cfg] of Object.entries(RESOURCES)) {
+    if (key === "delivery-zones") continue; // replaced by distance-based fees in Settings
     tabs.append(h("button", { type: "button", "data-key": key, "aria-pressed": "false", onclick: () => open(key) }, cfg.title));
   }
-  for (const [key, title] of [["orders", "Orders"], ["serving-rules", "Serving rules"]]) {
+  for (const [key, title] of [["orders", "Orders"], ["serving-rules", "Serving rules"], ["settings", "Settings"]]) {
     tabs.append(h("button", { type: "button", "data-key": key, "aria-pressed": "false", onclick: () => open(key) }, title));
   }
   tabs.append(h("button", { type: "button", onclick: () => logout() }, "Log out"));
