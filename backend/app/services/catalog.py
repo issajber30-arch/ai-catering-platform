@@ -6,6 +6,7 @@ from app.core.errors import AppError
 from app.models.catalog import Dish, DishCategory
 from app.repositories import catalog as repo
 from app.schemas.catalog import (
+    AllergenOut,
     CategoryOut,
     DietaryIn,
     DishDetailOut,
@@ -37,7 +38,7 @@ def dish_detail(db: Session, dish_id, lang: str, public: bool) -> DishDetailOut:
         raise AppError(404, "Dish not found")
     out = localize(DishDetailOut.model_validate(dish), lang)
     out.allergens = [
-        {"allergen_id": a.id, "name": a.name, "status": s}
+        AllergenOut(allergen_id=a.id, name=a.name, status=s)
         for a, s in repo.allergens_with_status(db, dish_id)
     ]
     return out
