@@ -46,3 +46,14 @@ fieldset { border: 1px solid #e6e1d8; border-radius: var(--radius); margin-block
   button { inline-size: 100%; }
   td.actions button { inline-size: auto; }
 }
+.badge { display: inline-block; padding-block: 2px; padding-inline: var(--space-2); border-radius: var(--radius); border: 1px solid #e7e1d8; background: #f5f1eb; color: #44403c; font-size: 0.875rem; font-weight: 600; }
+.badge-pending_approval { background: #fff7e6; border-color: #d9a441; color: #7a4a00; }
+.badge-approved { border-color: var(--color-success); color: var(--color-success); background: #fff; }
+.badge-rejected { border-color: var(--color-danger); color: var(--color-danger); background: #fff; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin-block: 0 var(--space-3); }
+dt { color: #78716c; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.hint { color: #78716c; }
+.decision { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+label.filter { max-inline-size: 280px; }
+td input[type="number"] { inline-size: 7rem; padding: var(--space-2); border: 1px solid #b9b2a6; border-radius: var(--radius); }

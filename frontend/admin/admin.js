@@ -1,20 +1,10 @@
 // All DOM is built with createElement/textContent; server data is never parsed as HTML.
 import { api, auth } from "/js/api.js";
+import { h } from "/js/dom.js";
 
 const app = document.getElementById("app");
 const message = document.getElementById("message");
 const state = { config: null, categories: [], allergens: [] };
-
-function h(tag, props = {}, ...children) {
-  const el = document.createElement(tag);
-  for (const [key, value] of Object.entries(props)) {
-    if (key.startsWith("on")) el.addEventListener(key.slice(2), value);
-    else if (value === true) el.setAttribute(key, "");
-    else if (value !== false && value != null) el.setAttribute(key, value);
-  }
-  el.append(...children.flat().filter((c) => c != null));
-  return el;
-}
 
 function say(text, kind = "ok") {
   message.textContent = text;
@@ -266,20 +256,127 @@ async function dishExtras(dish, reload) {
   return h("div", {}, dietaryForm, imageForm);
 }
 
+// ---- orders
+const STATUS_TEXT = { draft: "Draft", pending_approval: "Awaiting approval", approved: "Approved", rejected: "Rejected" };
+const money = (v, cur) => `${Number(v).toFixed(2)} ${cur}`;
+const statusBadge = (st) => h("span", { class: `badge badge-${st}` }, STATUS_TEXT[st] ?? st);
+
+async function showOrders(tabs, filter = "", openId = null) {
+  const rows = await api(`/api/admin/orders${filter ? `?status=${encodeURIComponent(filter)}` : ""}`);
+  const holder = h("div");
+  const select = h("select", { onchange: () => run(() => showOrders(tabs, select.value)) },
+    h("option", { value: "" }, "All"),
+    ...Object.entries(STATUS_TEXT).map(([v, t]) => h("option", { value: v }, t)));
+  select.value = filter;
+  const refresh = (id) => showOrders(tabs, filter, id);
+  const table = h("div", { class: "table-wrap" }, h("table", {},
+    h("thead", {}, h("tr", {}, ...["Event date", "Customer", "Event type", "Guests", "Total", "Status", ""].map((c) => h("th", {}, c)))),
+    h("tbody", {}, ...rows.map((o) => h("tr", {},
+      h("td", {}, cell(o.event_date)), h("td", {}, cell(o.customer_name)), h("td", {}, cell(o.event_type)),
+      h("td", {}, cell(o.guests)),
+      h("td", {}, o.status === "draft" || o.total == null ? "—" : money(o.total, o.currency)),
+      h("td", {}, statusBadge(o.status)),
+      h("td", { class: "actions" }, h("button", { type: "button", onclick: () => run(async () => {
+        holder.replaceChildren(await orderDetail(o.id, refresh));
+        holder.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }) }, "Open")))))));
+  app.replaceChildren(tabs, h("section", {}, h("h2", {}, "Orders"),
+    h("label", { class: "filter" }, "Status", select),
+    h("div", { class: "card" }, rows.length ? table : h("p", {}, "No orders.")), holder));
+  if (openId) holder.replaceChildren(await orderDetail(openId, refresh));
+}
+
+async function orderDetail(id, refresh) {
+  const o = await api(`/api/admin/orders/${id}`);
+  const ev = o.event;
+  const dl = (pairs) => h("dl", {}, ...pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, cell(v))]));
+  const note = h("textarea", { maxlength: 1000, rows: 3 });
+  const actions = h("div", { class: "decision" });
+  const decide = (kind) => run(async () => {
+    try {
+      await api(`/api/admin/orders/${id}/${kind}`, { method: "POST", body: JSON.stringify({ note: note.value.trim() || null }) });
+      await refresh(id);
+      say(kind === "approve" ? "Order approved." : "Order rejected.");
+    } catch (e) {
+      if (e.code !== "invalid_transition") throw e;
+      await refresh(id);
+      say("This order was already decided or is not awaiting approval. The view was refreshed.", "error");
+    }
+  });
+  const ask = (kind) => actions.replaceChildren(
+    h("span", { role: "alert" }, kind === "approve" ? "Approve this order?" : "Reject this order?"),
+    h("button", { type: "button", class: kind === "approve" ? "primary" : "danger", onclick: () => decide(kind) }, `Yes, ${kind}`),
+    h("button", { type: "button", onclick: idle }, "Cancel"));
+  function idle() {
+    actions.replaceChildren(h("button", { type: "button", class: "primary", onclick: () => ask("approve") }, "Approve"),
+      h("button", { type: "button", class: "danger", onclick: () => ask("reject") }, "Reject"));
+  }
+  idle();
+  return h("div", { class: "card order-detail" },
+    h("h2", {}, "Order ", statusBadge(o.status)),
+    h("h3", {}, "Contact"), dl([["Name", o.customer.full_name], ["Email", o.customer.email], ["Phone", o.customer.phone]]),
+    h("h3", {}, "Event"), dl([["Type", ev.event_type], ["Date", ev.event_date], ["Adults", ev.adults], ["Children", ev.children],
+      ["Vegetarian guests (within total)", ev.vegetarian_guests], ["Vegan guests (within total)", ev.vegan_guests],
+      ["Restricted-diet guests (within total)", ev.restricted_guests], ["Dietary notes", ev.dietary_notes]]),
+    h("h3", {}, "Fulfillment"), dl([["Type", o.fulfillment_type], ["Requested time", o.requested_at], ["Address", o.delivery_address]]),
+    h("h3", {}, "Items"),
+    h("div", { class: "table-wrap" }, h("table", {}, h("tbody", {}, ...o.items.map((i) => h("tr", {},
+      h("td", {}, i.name),
+      h("td", {}, `${i.quantity} × ${money(i.unit_price, o.currency)}${i.unit ? ` (${i.unit})` : ""}`),
+      h("td", {}, money(i.line_total, o.currency))))))),
+    dl([["Subtotal", money(o.subtotal, o.currency)], ["Delivery fee", money(o.delivery_fee, o.currency)], ["Total", money(o.total, o.currency)]]),
+    h("p", { class: "hint" }, "Prices include VAT."),
+    o.status === "pending_approval"
+      ? h("div", {}, h("label", {}, "Note (optional, up to 1000 characters)", note), actions)
+      : o.decided_at ? h("div", {}, h("h3", {}, "Decision"), dl([["Decided at", o.decided_at], ["Note", o.decision_note]])) : null);
+}
+
+// ---- serving rules
+async function showRules(tabs) {
+  const [cats, rules] = await Promise.all([api("/api/admin/categories"), api("/api/admin/quantity-rules")]);
+  const byCat = new Map(rules.map((r) => [r.category_id, r]));
+  const rows = cats.filter((c) => c.is_active).map((c) => {
+    const rule = byCat.get(c.id);
+    const num = (name, v, min) => h("input", { type: "number", name, min, step: "0.001", required: true, value: v ?? "", "aria-label": name });
+    const pa = num("per_adult", rule?.per_adult, "0"), pc = num("per_child", rule?.per_child, "0"), rs = num("round_step", rule?.round_step, "0.001");
+    const save = () => run(async () => {
+      if (!(Number(rs.value) > 0) || pa.value === "" || pc.value === "") throw new Error("Fill all three values; round step must be above 0.");
+      await api(`/api/admin/quantity-rules/${c.id}`, { method: "PUT",
+        body: JSON.stringify({ per_adult: pa.value, per_child: pc.value, round_step: rs.value }) });
+      await showRules(tabs); say("Rule saved.");
+    });
+    const remove = () => run(async () => { await api(`/api/admin/quantity-rules/${c.id}`, { method: "DELETE" }); await showRules(tabs); say("Rule removed."); });
+    return h("tr", {}, h("td", {}, c.name_en || c.name_he), h("td", {}, pa), h("td", {}, pc), h("td", {}, rs),
+      h("td", {}, rule ? "Set" : "No rule"),
+      h("td", { class: "actions" }, h("button", { type: "button", class: "primary", onclick: save }, "Save"),
+        rule ? h("button", { type: "button", class: "danger", onclick: remove }, "Remove") : null));
+  });
+  app.replaceChildren(tabs, h("section", {}, h("h2", {}, "Serving rules"),
+    h("p", {}, "How much to prepare per adult and per child, in the dish's own unit (tray/kg/item). Selected dishes in a category share it evenly; suggestions round up. Without a rule, customers get no suggested quantity."),
+    h("div", { class: "card" }, h("div", { class: "table-wrap" }, h("table", {},
+      h("thead", {}, h("tr", {}, ...["Category", "Per adult", "Per child", "Round step", "Rule", ""].map((c) => h("th", {}, c)))),
+      h("tbody", {}, ...rows))))));
+}
+
 // ---- shell
 async function showDashboard() {
   state.config ??= await api("/api/public-config");
   const tabs = h("nav", { "aria-label": "Sections" });
   const open = (key) => run(async () => {
     for (const b of tabs.children) b.setAttribute("aria-pressed", String(b.dataset.key === key));
-    await showResource(key, tabs);
+    if (key === "orders") await showOrders(tabs);
+    else if (key === "serving-rules") await showRules(tabs);
+    else await showResource(key, tabs);
   });
   for (const [key, cfg] of Object.entries(RESOURCES)) {
     tabs.append(h("button", { type: "button", "data-key": key, "aria-pressed": "false", onclick: () => open(key) }, cfg.title));
   }
+  for (const [key, title] of [["orders", "Orders"], ["serving-rules", "Serving rules"]]) {
+    tabs.append(h("button", { type: "button", "data-key": key, "aria-pressed": "false", onclick: () => open(key) }, title));
+  }
   tabs.append(h("button", { type: "button", onclick: () => logout() }, "Log out"));
   app.replaceChildren(tabs);
-  await open("categories");
+  await open("orders");
 }
 
 if (auth.get()) run(showDashboard); else showLogin();
