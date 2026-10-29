@@ -1,6 +1,6 @@
 # Preliminary Database Schema (PostgreSQL / Supabase)
 
-Status: **Draft v0.1** — not yet migrated. First migration is planned for Phase 2.
+Status: **Draft v0.1**. Catalog, logistics and availability tables are migrated (Phase 2) with per-language `name_he/ar/en` and `description_he/ar/en` columns on categories and dishes; orders and AI tables are still planned.
 
 Conventions **[RECOMMENDATION]**: `uuid` PKs (`gen_random_uuid()`), `timestamptz` `created_at`/`updated_at`, money as `numeric(10,2)`, enums as Postgres enum types, snake_case, RLS enabled on every table.
 

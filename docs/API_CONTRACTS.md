@@ -1,6 +1,6 @@
 # API Contracts (preliminary)
 
-Status: **Draft v0.1**. Only `GET /health` is implemented (Phase 1). Everything else is a design target and may change.
+Status: **Draft v0.1**. `/health`, the catalog, availability, public-config and the Admin catalog/logistics routes are implemented (Phases 1-2); orders and AI are not. Everything else is a design target and may change.
 
 Base: same origin as the frontend. JSON only. All bodies validated with Pydantic.
 
@@ -10,7 +10,7 @@ Base: same origin as the frontend. JSON only. All bodies validated with Pydantic
 { "error": { "code": "order_version_conflict", "message": "Human readable", "details": {} } }
 ```
 
-Common codes: `validation_error` (422), `not_found` (404), `forbidden` (403), `unauthenticated` (401), `invalid_transition` (409), `order_version_conflict` (409), `proposal_not_pending` (409).
+Common codes: `conflict` (409), `file_too_large` (413), `unsupported_media_type` (415), `validation_error` (422), `not_found` (404), `forbidden` (403), `unauthenticated` (401), `invalid_transition` (409), `order_version_conflict` (409), `proposal_not_pending` (409).
 
 ## System
 
@@ -76,6 +76,7 @@ Proposal shape:
 |---|---|
 | GET/POST | `/api/admin/categories` · PATCH/DELETE `/api/admin/categories/{id}` |
 | GET/POST | `/api/admin/dishes` · PATCH/DELETE `/api/admin/dishes/{id}` |
+| GET | `/api/admin/allergens` (read-only list, Phase 2) |
 | POST | `/api/admin/dishes/{id}/image` (multipart → Supabase Storage) |
 | PUT | `/api/admin/dishes/{id}/dietary` |
 | GET/POST/PATCH/DELETE | `/api/admin/delivery-zones` |
