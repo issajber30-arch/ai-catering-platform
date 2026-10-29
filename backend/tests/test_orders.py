@@ -641,3 +641,19 @@ def test_admin_settings_kitchen_geocode(admin, places):
 def test_admin_order_detail_has_rule_fields(admin, client, order):
     detail = admin.get(f"/api/admin/orders/{order['id']}").json()
     assert detail["warnings"] == [] and detail["delivery_fee_estimated"] is False
+
+
+def test_geocode_failure_is_not_cached(db):
+    from app.services import geo
+
+    calls = []
+
+    def flaky(address):
+        calls.append(address)
+        if len(calls) == 1:
+            raise geo.GeocodeError
+        return (31.78, 35.22)
+
+    assert geo.locate(db, flaky, "Jaffa St 1, Jerusalem") is None
+    assert geo.locate(db, flaky, "Jaffa St 1, Jerusalem") == (31.78, 35.22)
+    assert len(calls) == 2

@@ -22,8 +22,14 @@ EARTH_KM = 6371.0
 CENT = Decimal("0.01")
 
 
+class GeocodeError(Exception):
+    """Lookup failed (network/upstream), as opposed to "no such address"; never cached."""
+
+
 def nominatim(address: str) -> tuple[float, float] | None:
-    """One upstream call per second process-wide (usage policy); any failure counts as not found."""
+    """One upstream call per second process-wide (usage policy).
+    shortcut: no per-client limit, so a flood of unique addresses queues behind the lock;
+    add a rate limit at the proxy/app before public launch (Phase 6)."""
     global _last_call
     with _lock:
         time.sleep(max(0.0, _last_call + 1.0 - time.monotonic()))
@@ -39,7 +45,7 @@ def nominatim(address: str) -> tuple[float, float] | None:
             return (float(rows[0]["lat"]), float(rows[0]["lon"])) if rows else None
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
             log.warning("geocode failed")  # never log the address
-            return None
+            raise GeocodeError from None
         finally:
             _last_call = time.monotonic()
 
@@ -54,7 +60,10 @@ def locate(db: Session, geocode: Geocoder, address: str) -> tuple[float, float] 
         return None
     if row := repo.cached(db, key):
         return (row.lat, row.lon) if row.found else None
-    point = geocode(address)
+    try:
+        point = geocode(address)
+    except GeocodeError:
+        return None  # treated as not found this time; retried on the next lookup
     repo.cache(db, key, point)
     return point
 
