@@ -3,7 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
-from app.api import admin, catalog
+from app.api import admin, catalog, orders
 from app.api import config as public_config
 from app.core.config import get_settings
 from app.core.errors import _body, install_error_handlers
@@ -30,7 +30,7 @@ def health() -> dict[str, str]:
     return {"status": "ok", "env": get_settings().app_env}
 
 
-for module in (catalog, public_config, admin):
+for module in (catalog, public_config, admin, orders):
     app.include_router(module.router)
 
 # Mounted last so API routes take precedence.

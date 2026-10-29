@@ -10,6 +10,7 @@ from app.core.security import require_admin
 from app.core.storage import MAX_IMAGE_BYTES, detect_image, get_uploader
 from app.models.catalog import Allergen, Dish, DishCategory
 from app.models.logistics import BlockedDate, DeliveryZone, TimeSlot
+from app.models.orders import OrderStatus, QuantityRule
 from app.repositories import catalog as repo
 from app.schemas.catalog import (
     CategoryIn,
@@ -31,8 +32,16 @@ from app.schemas.logistics import (
     ZoneOut,
     ZonePatch,
 )
+from app.schemas.orders import (
+    DecisionIn,
+    OrderOut,
+    OrderSummary,
+    QuantityRuleIn,
+    QuantityRuleOut,
+)
 from app.services import availability, delivery
 from app.services import catalog as service
+from app.services import orders as order_service
 
 # One router-level dependency guards every admin route (a test enforces it).
 router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin)])
@@ -83,7 +92,7 @@ def patch_dish(dish_id: uuid.UUID, body: DishPatch, db: Db) -> DishDetailOut:
 
 @router.delete("/dishes/{dish_id}", status_code=204)
 def delete_dish(dish_id: uuid.UUID, db: Db) -> None:
-    # Hard delete is fine until Phase 3 adds order references (then set is_available=false).
+    # Referenced by an order -> 409 from the IntegrityError handler; use is_available=false instead.
     repo.remove(db, service.need(db, Dish, dish_id, "Dish"))
 
 
@@ -169,3 +178,38 @@ def create_blocked(body: BlockedIn, db: Db) -> BlockedOut:
 @router.delete("/blocked-dates/{blocked_id}", status_code=204)
 def delete_blocked(blocked_id: uuid.UUID, db: Db) -> None:
     repo.remove(db, service.need(db, BlockedDate, blocked_id, "Blocked date"))
+
+
+@router.get("/orders")
+def list_orders(db: Db, status: OrderStatus | None = None) -> list[OrderSummary]:
+    return order_service.list_orders(db, status)
+
+
+@router.get("/orders/{order_id}")
+def get_order(order_id: uuid.UUID, db: Db) -> OrderOut:
+    return order_service.admin_order(db, order_id)
+
+
+@router.post("/orders/{order_id}/approve")
+def approve_order(order_id: uuid.UUID, db: Db, body: DecisionIn | None = None) -> OrderOut:
+    return order_service.decide(db, order_id, OrderStatus.approved, (body or DecisionIn()).note)
+
+
+@router.post("/orders/{order_id}/reject")
+def reject_order(order_id: uuid.UUID, db: Db, body: DecisionIn | None = None) -> OrderOut:
+    return order_service.decide(db, order_id, OrderStatus.rejected, (body or DecisionIn()).note)
+
+
+@router.get("/quantity-rules")
+def list_rules(db: Db) -> list[QuantityRuleOut]:
+    return repo.list_all(db, QuantityRule, QuantityRule.category_id)
+
+
+@router.put("/quantity-rules/{category_id}")
+def put_rule(category_id: uuid.UUID, body: QuantityRuleIn, db: Db) -> QuantityRuleOut:
+    return order_service.put_rule(db, category_id, body)
+
+
+@router.delete("/quantity-rules/{category_id}", status_code=204)
+def delete_rule(category_id: uuid.UUID, db: Db) -> None:
+    order_service.delete_rule(db, category_id)
