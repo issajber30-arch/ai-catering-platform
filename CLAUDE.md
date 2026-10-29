@@ -22,6 +22,8 @@ psql catering_dev -f ../database/migrations/<file>.sql                    # appl
 ```
 
 - The test fixture (`tests/conftest.py`) **drops the `public` schema** of `TEST_DATABASE_URL` and re-applies every file in `database/migrations/` in name order. It refuses any database whose name doesn't end in `_test`.
+- Each test truncates the tables named in `TABLES` in `conftest.py`. **Add every new table there** when you add a migration, or data leaks between tests.
+- Settings load from `.env` in `backend/` or the repo root (`core/config.py`), so pytest picks up `TEST_DATABASE_URL` from there too.
 - Tests fake Supabase entirely: a local ES256 key pair, a monkeypatched JWKS client and a fake storage uploader. They never need network access.
 - CI (`.github/workflows/ci.yml`) runs on Python 3.12 with a `postgres:16` service and runs `uv sync --frozen` → ruff check → ruff format check → pytest. Changing dependencies means committing an updated `uv.lock`.
 - Ruff: line length 100, rules `E,F,I,B,UP,S` (bandit), with `S101` allowed in tests.
