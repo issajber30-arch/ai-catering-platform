@@ -4,6 +4,7 @@ import hmac
 import secrets
 import uuid
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -55,9 +56,13 @@ def _draft(db: Session, order_id: uuid.UUID, token: str | None, version: int) ->
     return order
 
 
+def _at(day: dt.date, time: dt.time) -> dt.datetime:
+    return dt.datetime.combine(day, time, tzinfo=ZoneInfo(get_settings().business_timezone))
+
+
 def check_logistics(db: Session, event_date, ftype, slot_id, address, zone_id) -> TimeSlot:
     """Weekday convention: TimeSlot.weekday follows date.weekday(), Monday=0 .. Sunday=6."""
-    if event_date < dt.date.today():
+    if event_date < dt.datetime.now(ZoneInfo(get_settings().business_timezone)).date():
         raise AppError(422, "Event date is in the past")
     if lrepo.blocked_between(db, event_date, event_date):
         raise AppError(422, "Event date is not available")
@@ -66,6 +71,8 @@ def check_logistics(db: Session, event_date, ftype, slot_id, address, zone_id) -
         raise AppError(422, "Time slot is not available for this fulfillment type")
     if slot.weekday is not None and slot.weekday != event_date.weekday():
         raise AppError(422, "Time slot is not offered on that weekday")
+    if _at(event_date, slot.start_time) <= dt.datetime.now(dt.UTC):
+        raise AppError(422, "Time slot has already started")
     if ftype == FulfillmentType.delivery:
         zone = crepo.get(db, DeliveryZone, zone_id) if zone_id else None
         if not address or zone is None or not zone.is_active:
@@ -95,7 +102,7 @@ def create_order(db: Session, body: OrderCreate, lang: str) -> OrderCreated:
             access_token_hash=_hash(token),
             fulfillment_type=body.fulfillment_type,
             time_slot_id=slot.id,
-            requested_at=dt.datetime.combine(event.event_date, slot.start_time),
+            requested_at=_at(event.event_date, slot.start_time),
             delivery_address=body.delivery_address if delivery else None,
             delivery_zone_id=body.delivery_zone_id if delivery else None,
             currency=get_settings().default_currency,
@@ -177,7 +184,7 @@ def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str) -> Or
     order.fulfillment_type, order.time_slot_id = ftype, slot.id
     order.delivery_address = address if delivery else None
     order.delivery_zone_id = zone_id if delivery else None
-    order.requested_at = dt.datetime.combine(order.event.event_date, slot.start_time)
+    order.requested_at = _at(order.event.event_date, slot.start_time)
     order.version += 1
     return order_out(_save(db, order), lang)
 
@@ -232,6 +239,10 @@ def submit(db: Session, order_id, token, version, lang) -> OrderOut:
         raise AppError(422, "Order has no items")
     if any(not i.dish.is_available for i in order.items):
         raise AppError(422, "Some dishes are no longer available")
+    if any(
+        i.dish.min_quantity is not None and i.quantity < i.dish.min_quantity for i in order.items
+    ):
+        raise AppError(422, "Some dishes are below their minimum quantity")
     check_logistics(
         db, order.event.event_date, order.fulfillment_type, order.time_slot_id,
         order.delivery_address, order.delivery_zone_id,

@@ -4,6 +4,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from app.core.errors import AppError
 
 CENT = Decimal("0.01")
+MAX_AMOUNT = Decimal("99999999.99")  # numeric(10,2)
 
 
 @dataclass(frozen=True)
@@ -34,4 +35,6 @@ def price(lines: list[Line], delivery_fee: Decimal | None = None) -> Totals:
     totals = [line_total(line.quantity, line.unit_price) for line in lines]
     subtotal = sum(totals, Decimal("0.00"))
     fee = (delivery_fee or Decimal("0")).quantize(CENT, ROUND_HALF_UP)
+    if subtotal + fee > MAX_AMOUNT:
+        raise AppError(422, "Order total is too large")
     return Totals(totals, subtotal, fee, subtotal + fee, next(iter(currencies), None))

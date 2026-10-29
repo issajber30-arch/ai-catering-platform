@@ -286,7 +286,16 @@ def test_date_rules(client, admin, body, slot):
         return client.post("/api/orders", json=body | {"event": body["event"] | event})
 
     assert post(event_date=str(TODAY - dt.timedelta(days=1))).status_code == 422
-    assert post(event_date=str(TODAY)).status_code == 201
+    early = admin.post(
+        "/api/admin/time-slots",
+        json={"fulfillment_type": "pickup", "start_time": "00:00", "end_time": "00:30"},
+    ).json()
+    started = client.post(
+        "/api/orders",
+        json=body
+        | {"event": body["event"] | {"event_date": str(TODAY)}, "time_slot_id": early["id"]},
+    )
+    assert started.status_code == 422
     admin.post("/api/admin/blocked-dates", json={"date": str(FUTURE)})
     blocked = post()
     assert blocked.status_code == 422 and error_code(blocked) == "validation_error"
@@ -377,3 +386,20 @@ def test_referenced_dish_cannot_be_deleted(admin, client, make_dish, order):
     dish = make_dish()
     put_item(client, order, dish)
     assert admin.delete(f"/api/admin/dishes/{dish['id']}").status_code == 409
+
+
+def test_total_too_large_is_422(client, make_dish, order):
+    dish = make_dish(unit_price="99999.00")
+    response = put_item(client, order, dish, quantity="100000")
+    assert response.status_code == 422
+
+
+def test_submit_rechecks_min_quantity(client, make_dish, admin, order):
+    dish = make_dish()
+    assert put_item(client, order, dish, quantity="2").status_code == 200
+    admin.patch(f"/api/admin/dishes/{dish['id']}", json={"min_quantity": "5"})
+    assert submit(client, order, 2).status_code == 422
+
+
+def test_requested_at_has_timezone(order):
+    assert order["requested_at"].endswith(("+02:00", "+03:00", "Z", "+00:00"))
