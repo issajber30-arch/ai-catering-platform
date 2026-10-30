@@ -10,7 +10,7 @@ Status: **Draft v0.1** · Phase 0 deliverable
                        │
                        ▼
 ┌──────────────────────────────────────────────┐
-│ FastAPI application (one Railway service)    │
+│ FastAPI application (one Render web service)    │
 │                                              │
 │  api/          HTTP routers, auth deps       │
 │   │                                          │
@@ -38,7 +38,7 @@ Status: **Draft v0.1** · Phase 0 deliverable
 
 1. **Backend is authoritative.** Prices, quantities, order state, and availability are computed and stored by backend code. The frontend and the LLM only display or request.
 2. **The AI agent is a client of services, never of the database.** `agents/` may only call service functions exposed as typed tools. Every tool argument is validated by a Pydantic schema. Mutations go through the proposal → approval → execution workflow (`AI_AGENT_DESIGN.md`).
-3. **Layered, modular monolith.** `api → services → repositories → models`. Lower layers never import upper layers. Simple to deploy as one Railway service; can be split later if needed.
+3. **Layered, modular monolith.** `api → services → repositories → models`. Lower layers never import upper layers. Simple to deploy as one Render web service; can be split later if needed.
 4. **No frontend framework.** Plain HTML/CSS/JS modules served as static files by FastAPI (same origin → no CORS setup needed). **[CONFIRMED]**
 5. **Configuration via environment variables** (`pydantic-settings`). No secrets in Git.
 
@@ -70,17 +70,17 @@ Status: **Draft v0.1** · Phase 0 deliverable
 
 ## 6. Environments and branches **[CONFIRMED]** (separate Supabase projects strongly preferred)
 
-| Git branch | Railway environment | Supabase project | Deploys |
+| Git branch | Render service | Supabase project | Deploys |
 |---|---|---|---|
 | `dev` | `development` | `ai-catering-dev` | Auto on push to `dev` (after Phase 6 approval) |
 | `main` | `production` | `ai-catering-prod` | Manual / explicit approval only |
 
-- Each Railway environment has its own variables (`APP_ENV`, `DATABASE_URL`, `SUPABASE_*`, LLM key).
+- Each Render service has its own variables (`APP_ENV`, `DATABASE_URL`, `SUPABASE_*`, LLM key).
 - Feature work → PR into `dev` → CI must pass → merge. Release → PR `dev` → `main` → CI → merge → manual production deploy.
 
 ## 7. CI/CD
 
-GitHub Actions on push/PR to `dev` and `main`: `uv sync` → `ruff check` → `ruff format --check` → `pytest`. Railway handles builds; CI does not deploy.
+GitHub Actions on push/PR to `dev` and `main`: `uv sync` → `ruff check` → `ruff format --check` → `pytest`. Render builds and deploys from the branch; CI does not deploy.
 
 ## 8. Error handling & logging
 

@@ -78,7 +78,7 @@ Details: `AI_AGENT_DESIGN.md`.
 | UX | Mobile-first, responsive, accessible (WCAG 2.2 AA target), premium look | CONFIRMED / target RECOMMENDATION |
 | Quote integrity | Price snapshot at submission | CONFIRMED |
 | Testing | pytest, Ruff, API integration tests, AI action validation tests | CONFIRMED |
-| Environments | `dev` → Railway dev + Supabase dev; `main` → Railway prod + Supabase prod | CONFIRMED (separate Supabase projects strongly preferred) |
+| Environments | `dev` → Render dev + Supabase dev; `main` → Render prod + Supabase prod (hosting changed from Railway, decision log 2026-10-30) | CONFIRMED (separate Supabase projects strongly preferred) |
 
 ## 9. Out of scope **[CONFIRMED]**
 
