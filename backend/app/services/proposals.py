@@ -2,7 +2,7 @@ import datetime as dt
 import uuid
 from decimal import Decimal
 
-from pydantic import TypeAdapter
+from pydantic import TypeAdapter, ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
@@ -112,6 +112,13 @@ def approve(db: Session, order_id, token, proposal_id, lang: str = "he"):
         _close(db, proposal, ProposalStatus.expired, err)
     try:  # dishes may have become unavailable since the proposal was made
         _, new, dishes, _ = _plan(db, order, _CHANGES.validate_python(proposal.changes))
+    except ValidationError:  # stored changes no longer parse: fail the proposal, not the request
+        _close(
+            db,
+            proposal,
+            ProposalStatus.failed,
+            AppError(409, "This suggestion can't be applied; ask again"),
+        )
     except AppError as e:
         _close(db, proposal, ProposalStatus.failed, e)
     for item in [i for i in order.items if i.dish_id not in new]:

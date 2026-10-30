@@ -49,7 +49,7 @@ def visible(db: Session, order_id, token) -> list[dict]:
     orders.customer_order(db, order_id, token)
     conv = repo.conversation(db, order_id)
     out = []
-    for r in repo.messages(db, conv.id) if conv else []:
+    for r in repo.recent_messages(db, conv.id, 400) if conv else []:  # bounded
         if r.role == "user":
             text = r.content["text"]
         elif r.role == "assistant":

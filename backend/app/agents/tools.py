@@ -160,7 +160,9 @@ _REGISTRY = {
             "category_id": {"type": ["string", "null"]},
             "vegetarian": {"type": ["boolean", "null"]},
             "vegan": {"type": ["boolean", "null"]},
-            "kashrut": {"type": ["string", "null"], "enum": ["meat", "dairy", "pareve", None]},
+            "kashrut": {
+                "anyOf": [{"type": "string", "enum": ["meat", "dairy", "pareve"]}, {"type": "null"}]
+            },
         }),
         DishesArgs, get_available_dishes,
     ),

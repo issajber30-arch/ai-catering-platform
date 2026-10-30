@@ -1,6 +1,7 @@
 """Manual tool-use loop for the customer assistant. Talks to services only (via tools)."""
 
 import logging
+import threading
 import uuid
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -77,9 +78,27 @@ def _usage(resp) -> dict:
     }  # fmt: skip
 
 
+# shortcut: per-process lock; with several app workers use a DB-backed lock instead (Phase 6).
+_busy: set[uuid.UUID] = set()
+_busy_lock = threading.Lock()
+
+
 def chat(
     db: Session, llm, order_id: uuid.UUID, token: str | None, message: str, lang: str = "he"
 ) -> Turn:
+    """One turn at a time per order, so two turns' rows never interleave in the history."""
+    with _busy_lock:
+        if order_id in _busy:
+            raise AppError(409, "The assistant is still answering your previous message.")
+        _busy.add(order_id)
+    try:
+        return _turn(db, llm, order_id, token, message, lang)
+    finally:
+        with _busy_lock:
+            _busy.discard(order_id)
+
+
+def _turn(db: Session, llm, order_id, token, message: str, lang: str) -> Turn:
     conv = conversations.start(db, order_id, token)
     conversations.add(db, conv.id, "user", {"text": message})  # counted even if the call fails
     ctx = tools.Ctx(db, order_id, conv.id, lang)

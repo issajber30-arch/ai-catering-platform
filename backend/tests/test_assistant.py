@@ -1,6 +1,7 @@
 # ruff: noqa: F811
 # (fixtures imported from test_orders are re-declared as test parameters)
 import json
+import uuid
 from types import SimpleNamespace
 
 import anthropic
@@ -385,3 +386,33 @@ def test_admin_assistant_summary(client, llm, make_dish, admin, order):
     assert "add it" not in r.text and "Please approve" not in r.text  # no chat bodies
     client.headers.pop("Authorization")
     assert client.get(f"/api/admin/orders/{order['id']}/assistant").status_code == 401
+
+
+def test_tool_schemas_never_mix_enum_with_type_list():
+    # The API rejects {"type": ["string", "null"], "enum": [...]}; nullable enums need anyOf.
+    from app.agents import tools
+
+    def walk(node):
+        if isinstance(node, dict):
+            assert not ("enum" in node and isinstance(node.get("type"), list)), node
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(tools.TOOLS)
+
+
+def test_second_message_while_answering_is_refused():
+    from app.agents import assistant
+    from app.core.errors import AppError
+
+    order_id = uuid.uuid4()
+    assistant._busy.add(order_id)
+    try:
+        with pytest.raises(AppError) as e:
+            assistant.chat(None, None, order_id, "t", "hi")
+        assert e.value.status == 409
+    finally:
+        assistant._busy.discard(order_id)
