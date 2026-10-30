@@ -88,6 +88,8 @@ class Order(Base):
     delivery_fee: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     total: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     submitted_at: Mapped[dt.datetime | None]
+    first_submitted_at: Mapped[dt.datetime | None]
+    reopened_at: Mapped[dt.datetime | None]
     decided_at: Mapped[dt.datetime | None]
     decision_note: Mapped[str | None] = mapped_column(Text)
     cancelled_at: Mapped[dt.datetime | None]

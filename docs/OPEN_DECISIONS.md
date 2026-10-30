@@ -19,7 +19,7 @@ When a decision is made, record it here and move the row out of the table above.
 
 | Date | # | Decision | Decided by |
 |---|---|---|---|
-| 2026-10-30 | 7 (partial) | Owner-only cancel of orders awaiting approval or approved, from the admin; a reason is required and shown to the customer. Customers cannot cancel themselves. Post-submission customer edits and deadlines still open | Owner |
+| 2026-10-30 | 7 (partial) | Owner-only cancel of orders awaiting approval or approved, from the admin; a reason is required and shown to the customer. Customers cannot cancel themselves. Customers may edit until 4 hours before the event (configurable, `edit_cutoff_hours`); an approved order goes back to the owner for approval. Other deadlines still open | Owner |
 | 2026-10-29 | 12 | Interface languages: Arabic, Hebrew and English; RTL for ar/he | Owner |
 | 2026-10-29 | 13 | No notifications; quote requests are viewed on the admin page | Owner |
 | 2026-10-29 | 17 | ILS (₪) | Owner |

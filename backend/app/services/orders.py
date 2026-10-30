@@ -62,13 +62,20 @@ def _at(day: dt.date, time: dt.time) -> dt.datetime:
     return dt.datetime.combine(day, time, tzinfo=ZoneInfo(get_settings().business_timezone))
 
 
-def check_logistics(db: Session, event_date, ftype, slot_id, address) -> TimeSlot:
-    """Weekday convention: TimeSlot.weekday follows date.weekday(), Monday=0 .. Sunday=6."""
+def check_logistics(
+    db: Session, event_date, ftype, slot_id, address, *, reopened: bool = False
+) -> TimeSlot:
+    """Weekday convention: TimeSlot.weekday follows date.weekday(), Monday=0 .. Sunday=6.
+
+    reopened: a previously submitted order kept on its original date; it only needs the edit
+    cutoff (checked once the slot is known) instead of the full lead time.
+    """
     today = dt.datetime.now(ZoneInfo(get_settings().business_timezone)).date()
     if event_date < today:
         raise AppError(422, "Event date is in the past")
-    lead = srepo.get(db).lead_time_days
-    if event_date < today + dt.timedelta(days=lead):
+    settings = srepo.get(db)
+    lead = settings.lead_time_days
+    if not reopened and event_date < today + dt.timedelta(days=lead):
         raise AppError(422, f"Events need at least {lead} days' notice")
     if lrepo.blocked_between(db, event_date, event_date):
         raise AppError(422, "Event date is not available")
@@ -79,6 +86,11 @@ def check_logistics(db: Session, event_date, ftype, slot_id, address) -> TimeSlo
         raise AppError(422, "Time slot is not offered on that weekday")
     if _at(event_date, slot.start_time) <= dt.datetime.now(dt.UTC):
         raise AppError(422, "Time slot has already started")
+    hours = settings.edit_cutoff_hours
+    if reopened and _at(event_date, slot.start_time) < (
+        dt.datetime.now(dt.UTC) + dt.timedelta(hours=hours)
+    ):
+        raise AppError(422, f"Events need at least {hours} hours' notice")
     if ftype == FulfillmentType.delivery:
         if not address:
             raise AppError(422, "Delivery needs an address")
@@ -191,7 +203,8 @@ def order_out(order: Order, lang: str = "he") -> OrderOut:
         event=order.event, fulfillment_type=order.fulfillment_type,
         time_slot_id=order.time_slot_id, requested_at=order.requested_at,
         delivery_address=order.delivery_address, delivery_zone_id=order.delivery_zone_id,
-        submitted_at=order.submitted_at, decided_at=order.decided_at,
+        submitted_at=order.submitted_at, first_submitted_at=order.first_submitted_at,
+        reopened_at=order.reopened_at, decided_at=order.decided_at,
         decision_note=order.decision_note, cancelled_at=order.cancelled_at,
         cancel_note=order.cancel_note,
     )  # fmt: skip
@@ -217,9 +230,10 @@ def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str, geoco
     # which would release the lock. Any change in between bumps the version, so _draft catches it.
     fields = _delivery(db, geocode, ftype, address) if changed else {}
     order = _draft(db, order_id, token, body.version)
+    date = event.get("event_date", order.event.event_date)
     slot = check_logistics(
-        db, event.get("event_date", order.event.event_date), ftype,
-        body.time_slot_id or order.time_slot_id, address,
+        db, date, ftype, body.time_slot_id or order.time_slot_id, address,
+        reopened=order.first_submitted_at is not None and date == order.event.event_date,
     )  # fmt: skip
     for k, v in event.items():
         setattr(order.event, k, v)
@@ -328,7 +342,7 @@ def submit(db: Session, order_id, token, version, lang) -> OrderOut:
         raise AppError(422, "Some dishes are below their minimum quantity")
     check_logistics(
         db, order.event.event_date, order.fulfillment_type, order.time_slot_id,
-        order.delivery_address,
+        order.delivery_address, reopened=order.first_submitted_at is not None,
     )  # fmt: skip
     priced = _priced(order, lang)
     minimum = srepo.get(db).min_food_total
@@ -349,6 +363,30 @@ def submit(db: Session, order_id, token, version, lang) -> OrderOut:
     order.currency = priced.currency
     order.status = OrderStatus.pending_approval
     order.submitted_at = dt.datetime.now(dt.UTC)
+    order.first_submitted_at = order.first_submitted_at or order.submitted_at
+    order.version += 1
+    return order_out(_save(db, order), lang)
+
+
+def reopen(db: Session, order_id, token, version, lang) -> OrderOut:
+    """Customer takes a submitted order back to draft; submitting again needs owner approval."""
+    order = customer_order(db, order_id, token, lock=True)
+    hours = srepo.get(db).edit_cutoff_hours
+    if order.status not in (OrderStatus.pending_approval, OrderStatus.approved):
+        raise AppError(409, "Order can no longer be changed", code="invalid_transition")
+    if dt.datetime.now(dt.UTC) >= order.requested_at - dt.timedelta(hours=hours):
+        raise AppError(
+            409, f"Changes are closed {hours} hours before the event", code="invalid_transition"
+        )
+    if order.version != version:
+        raise AppError(409, "Order was changed elsewhere", code="order_version_conflict")
+    order.status = OrderStatus.draft
+    order.subtotal = order.total = None  # delivery_fee stays: it is the draft's working fee
+    order.submitted_at = order.decided_at = order.decision_note = None
+    for item in order.items:
+        item.snapshot_name = item.snapshot_pricing_unit = None
+        item.snapshot_unit_price = item.snapshot_line_total = None
+    order.reopened_at = dt.datetime.now(dt.UTC)
     order.version += 1
     return order_out(_save(db, order), lang)
 
