@@ -32,6 +32,14 @@ def dish_out(d: Dish, lang: str = "he") -> DishOut:
     return localize(DishOut.model_validate(d), lang)
 
 
+def active_categories(db: Session, lang: str = "he") -> list[CategoryOut]:
+    return [category_out(c, lang) for c in repo.list_categories(db, active_only=True)]
+
+
+def available_dishes(db: Session, lang: str = "he", **filters) -> list[DishOut]:
+    return [dish_out(d, lang) for d in repo.list_dishes(db, public=True, **filters)]
+
+
 def dish_detail(db: Session, dish_id, lang: str, public: bool) -> DishDetailOut:
     dish = repo.get_dish(db, dish_id)
     if dish is None or (public and not dish.is_available):

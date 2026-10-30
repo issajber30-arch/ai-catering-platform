@@ -233,13 +233,17 @@ def patch_order(db: Session, order_id, token, body: OrderPatch, lang: str, geoco
     return order_out(_save(db, order), lang)
 
 
-def set_item(db: Session, order_id, token, dish_id, quantity: Decimal, version, lang):
-    order = _draft(db, order_id, token, version)
-    dish = need(db, Dish, dish_id, "Dish")
+def check_dish(dish: Dish, quantity: Decimal) -> None:
     if not dish.is_available:
         raise AppError(422, "Dish is not available")
     if dish.min_quantity is not None and quantity < dish.min_quantity:
         raise AppError(422, f"Minimum quantity for this dish is {dish.min_quantity}")
+
+
+def set_item(db: Session, order_id, token, dish_id, quantity: Decimal, version, lang):
+    order = _draft(db, order_id, token, version)
+    dish = need(db, Dish, dish_id, "Dish")
+    check_dish(dish, quantity)
     others = [
         pricing.Line(i.quantity, i.dish.unit_price, i.dish.currency)
         for i in order.items
@@ -264,8 +268,26 @@ def remove_item(db: Session, order_id, token, dish_id, version, lang) -> OrderOu
     return order_out(_save(db, order), lang)
 
 
+def bound_order(db: Session, order_id, lang: str = "he") -> OrderOut:
+    """For the assistant, whose order id is bound server-side (no token to check)."""
+    order = repo.get_order(db, order_id)
+    if order is None:
+        raise _not_found()
+    return order_out(order, lang)
+
+
 def recommendations(db: Session, order_id, token) -> list[RecommendationOut]:
-    order = customer_order(db, order_id, token)
+    return _recommendations(db, customer_order(db, order_id, token))
+
+
+def bound_recommendations(db: Session, order_id) -> list[RecommendationOut]:
+    order = repo.get_order(db, order_id)
+    if order is None:
+        raise _not_found()
+    return _recommendations(db, order)
+
+
+def _recommendations(db: Session, order: Order) -> list[RecommendationOut]:
     selected = [
         quantities.Selected(i.dish_id, i.dish.category_id, i.dish.pricing_unit) for i in order.items
     ]
