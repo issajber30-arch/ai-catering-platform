@@ -1,4 +1,11 @@
 /* Logical properties only, so the layout mirrors cleanly for RTL. */
+/* Phone basics: no grey tap flash, no iOS zoom on focus (16px inputs), instant taps, press feedback. */
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+body { padding-block-start: env(safe-area-inset-top, 0px); padding-block-end: env(safe-area-inset-bottom, 0px); }
+input, select, textarea { font-size: max(16px, 1em); }
+button { touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: transform 120ms ease-out; }
+button:active:not(:disabled) { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } button:active:not(:disabled) { transform: none; } }
 nav { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-end: var(--space-4); }
 button, input, select, textarea { font: inherit; }
 button {
@@ -37,7 +44,7 @@ label input:not([type="checkbox"]), label select, label textarea {
   background: #fff;
 }
 fieldset { border: 1px solid #e6e1d8; border-radius: var(--radius); margin-block-end: var(--space-3); }
-.grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
 .error { color: var(--color-danger); }
 .ok { color: var(--color-success); }
 .thumb { max-inline-size: 160px; max-block-size: 120px; border-radius: 8px; }
@@ -45,4 +52,20 @@ fieldset { border: 1px solid #e6e1d8; border-radius: var(--radius); margin-block
   main { padding-inline: var(--space-3); }
   button { inline-size: 100%; }
   td.actions button { inline-size: auto; }
+  nav { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-block-end: var(--space-1); }
+  nav button { inline-size: auto; flex: none; scroll-snap-align: start; }
+  dl { grid-template-columns: 1fr; }
+  dd { margin-block-end: var(--space-2); }
 }
+.badge { display: inline-block; padding-block: 2px; padding-inline: var(--space-2); border-radius: var(--radius); border: 1px solid #e7e1d8; background: #f5f1eb; color: #44403c; font-size: 0.875rem; font-weight: 600; }
+.badge-pending_approval { background: #fff7e6; border-color: #d9a441; color: #7a4a00; }
+.badge-approved { border-color: var(--color-success); color: var(--color-success); background: #fff; }
+.badge-rejected { border-color: var(--color-danger); color: var(--color-danger); background: #fff; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin-block: 0 var(--space-3); }
+dt { color: #78716c; }
+dd { margin: 0; overflow-wrap: anywhere; }
+.hint { color: #78716c; }
+.decision { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+label.filter { max-inline-size: 280px; }
+td input[type="number"] { inline-size: 7rem; padding: var(--space-2); border: 1px solid #b9b2a6; border-radius: var(--radius); }
+.notice { padding: var(--space-2) var(--space-3); border: 1px solid #d9a441; border-radius: var(--radius); background: #fff7e6; color: #7a4a00; font-weight: 600; }

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str | None = None
     test_database_url: str | None = None
     default_currency: str = "ILS"
+    business_timezone: str = "Asia/Jerusalem"
     storage_bucket: str = "dish-images"
 
 

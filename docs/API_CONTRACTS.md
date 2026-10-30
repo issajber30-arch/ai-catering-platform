@@ -27,7 +27,11 @@ Common codes: `conflict` (409), `file_too_large` (413), `unsupported_media_type`
 | GET | `/api/catalog/dishes/{id}` | Dish detail incl. allergen statuses |
 | GET | `/api/availability?from=&to=` | Blocked dates + slots |
 
-## Customer orders (auth model **[OPEN #1]**)
+## Customer orders (Phase 3, implemented)
+
+Guest checkout (decision #1). `POST /api/orders` returns `access_token` once; every other customer route needs header `X-Order-Token`. A missing/wrong token and an unknown id both return 404. Customer routes accept `?lang=he|ar|en`. Public helpers: `GET /api/catalog/event-types`, `GET /api/public-settings` → `{lead_time_days, min_food_total, max_km}`, `GET /api/delivery-quote?address=` (1–500 chars) → `{found, km, fee, max_km, too_far}`. `GET /api/delivery-zones` remains for legacy zone orders only.
+
+Phase 3.1 rules (server-enforced): event date ≥ today + `lead_time_days` (422 "Events need at least N days' notice"); submit needs food subtotal ≥ `min_food_total` (422); delivery fee = base + per_km × straight-line km from the kitchen, max `delivery_max_km` (422 "choose pickup"); address not found → `delivery_fee: null`, `delivery_fee_estimated: true`, total excludes delivery. `OrderOut` adds `warnings` (`"mixes_meat_dairy"`), `delivery_km`, `delivery_fee_estimated`. Every response carries CSP, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` and `X-Frame-Options: DENY`. `time_slots.weekday`: Monday=0 … Sunday=6, null = any day.
 
 | Method | Path | Notes |
 |---|---|---|
@@ -79,10 +83,12 @@ Proposal shape:
 | GET | `/api/admin/allergens` (read-only list, Phase 2) |
 | POST | `/api/admin/dishes/{id}/image` (multipart → Supabase Storage) |
 | PUT | `/api/admin/dishes/{id}/dietary` |
-| GET/POST/PATCH/DELETE | `/api/admin/delivery-zones` |
+| GET/POST/PATCH/DELETE | `/api/admin/delivery-zones` (legacy; tab hidden since Phase 3.1) |
+| GET/PUT | `/api/admin/settings` `{lead_time_days, min_food_total, delivery_base_fee, delivery_per_km, delivery_max_km, kitchen_address}`; a changed address is geocoded, unknown → 422 |
 | GET/POST/PATCH/DELETE | `/api/admin/time-slots` |
 | GET/POST/DELETE | `/api/admin/blocked-dates` |
 | GET | `/api/admin/orders?status=` · GET `/api/admin/orders/{id}` |
+| GET | `/api/admin/quantity-rules` · PUT/DELETE `/api/admin/quantity-rules/{category_id}` `{per_adult, per_child, round_step}` |
 | POST | `/api/admin/orders/{id}/approve` · `/api/admin/orders/{id}/reject` `{note}` |
 
 ## Order status transitions

@@ -40,3 +40,24 @@ main {
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* Customer UI tokens ("Haute Epicure"); admin keeps the neutral tokens above. */
+:root {
+  --ep-primary: #78350f;
+  --ep-primary-hover: #451a03;
+  --ep-bg: #fbf9f5;
+  --ep-sand: #f5f1eb;
+  --ep-border: #e7e1d8;
+  --ep-text: #1c1917;
+  --ep-text-2: #44403c;
+  --ep-text-3: #78716c;
+  --ep-radius: 4px;
+  --ep-meat: #991b1b;       --ep-meat-bg: #fef2f2;
+  --ep-dairy: #0369a1;      --ep-dairy-bg: #f0f9ff;
+  --ep-pareve: #3f6212;     --ep-pareve-bg: #f7fee7;
+  --ep-vegan: #854d0e;      --ep-vegan-bg: #fefce8;
+  --ep-pending: #92400e;    --ep-pending-bg: #fffbeb;
+  --ep-font-head: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --ep-font-body: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --ep-target: 44px;
+}
