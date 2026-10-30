@@ -7,6 +7,7 @@ from app.agents.assistant import chat, get_llm
 from app.api.catalog import Lang
 from app.api.orders import Token
 from app.core.db import Db
+from app.core.ratelimit import limit
 from app.models.ai import ProposalStatus
 from app.schemas.ai import ChatIn, ChatOut, MessageOut, ProposalOut
 from app.schemas.orders import OrderOut
@@ -16,7 +17,7 @@ router = APIRouter(prefix="/api")
 Llm = Annotated[object, Depends(get_llm)]
 
 
-@router.post("/orders/{order_id}/chat")
+@router.post("/orders/{order_id}/chat", dependencies=[Depends(limit("chat", 60, 3600))])
 def post_chat(
     order_id: uuid.UUID, body: ChatIn, db: Db, llm: Llm, token: Token = None, lang: Lang = "he"
 ) -> ChatOut:

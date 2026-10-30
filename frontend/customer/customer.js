@@ -175,7 +175,7 @@ async function checkQuote(f) {
   const paint = () => $("quote")?.replaceChildren(...quoteNodes(f));
   paint();
   try {
-    const data = await api(`/api/delivery-quote?address=${encodeURIComponent(addr)}`);
+    const data = await api("/api/delivery-quote", { method: "POST", body: JSON.stringify({ address: addr }) });
     if (st.quote?.addr === addr) st.quote = { addr, data };
   } catch { if (st.quote?.addr === addr) st.quote = { addr, error: true }; }
   paint();

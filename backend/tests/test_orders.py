@@ -597,16 +597,16 @@ def test_too_far(client, admin, body, slot, places):
     assert refused.json()["error"]["message"] == (
         "Delivery isn't available this far (max 40 km); choose pickup."
     )
-    quote = client.get("/api/delivery-quote", params={"address": "Far"}).json()
+    quote = client.post("/api/delivery-quote", json={"address": "Far"}).json()
     assert quote["found"] and quote["too_far"] and quote["fee"] is None
 
 
 def test_max_km_boundary(admin, client, places):
     places["Near"] = NEAR
     set_settings(admin, delivery_max_km="18.00")
-    assert client.get("/api/delivery-quote", params={"address": "Near"}).json()["too_far"] is False
+    assert client.post("/api/delivery-quote", json={"address": "Near"}).json()["too_far"] is False
     set_settings(admin, delivery_max_km="17.90")
-    assert client.get("/api/delivery-quote", params={"address": "Near"}).json()["too_far"] is True
+    assert client.post("/api/delivery-quote", json={"address": "Near"}).json()["too_far"] is True
 
 
 def test_address_not_found_is_estimated(client, admin, make_dish, body, slot):
@@ -624,19 +624,20 @@ def test_address_not_found_is_estimated(client, admin, make_dish, body, slot):
 
 def test_geocode_cache(client, places, geo_calls):
     places["Near"] = NEAR
-    first = client.get("/api/delivery-quote", params={"address": "Near"}).json()
-    again = client.get("/api/delivery-quote", params={"address": "  NEAR "}).json()
+    first = client.post("/api/delivery-quote", json={"address": "Near"}).json()
+    again = client.post("/api/delivery-quote", json={"address": "  NEAR "}).json()
     assert first == again and first["fee"] == "122.00" and len(geo_calls) == 1
-    client.get("/api/delivery-quote", params={"address": "Nowhere"})
-    client.get("/api/delivery-quote", params={"address": "nowhere"})  # not-found is cached too
+    client.post("/api/delivery-quote", json={"address": "Nowhere"})
+    client.post("/api/delivery-quote", json={"address": "nowhere"})  # not-found is cached too
     assert len(geo_calls) == 2
 
 
 def test_delivery_quote_validation(client):
     for address in ("", "x" * 501):
-        assert client.get("/api/delivery-quote", params={"address": address}).status_code == 422
-    assert client.get("/api/delivery-quote").status_code == 422
-    blank = client.get("/api/delivery-quote", params={"address": "   "}).json()
+        assert client.post("/api/delivery-quote", json={"address": address}).status_code == 422
+    assert client.post("/api/delivery-quote", json={}).status_code == 422
+    assert client.get("/api/delivery-quote").status_code in (404, 405)  # static mount answers
+    blank = client.post("/api/delivery-quote", json={"address": "   "}).json()
     assert blank["found"] is False
 
 
@@ -743,3 +744,43 @@ def test_geocoder_all_providers_failing_raises(monkeypatch):
     monkeypatch.setattr(geo, "PROVIDERS", (("first", boom), ("second", boom)))
     with pytest.raises(geo.GeocodeError):
         geo.nominatim("x")
+
+
+def test_order_rate_limit_per_ip(client, body):
+    def create(xff):
+        return client.post("/api/orders", json=body, headers={"X-Forwarded-For": xff})
+
+    for _ in range(10):
+        assert create("9.9.9.9").status_code == 201
+    r = create("9.9.9.9")
+    assert r.status_code == 429 and r.json()["error"]["code"] == "rate_limited"
+    assert int(r.headers["Retry-After"]) > 0
+    assert create("8.8.8.8").status_code == 201  # rightmost IP differs: counted separately
+    assert create("1.1.1.1, 9.9.9.9").status_code == 429  # spoofed leftmost entry doesn't help
+    assert create("1.1.1.1, 7.7.7.7").status_code == 201
+
+
+def test_quote_rate_limit(client):
+    for _ in range(30):
+        assert client.post("/api/delivery-quote", json={"address": "  "}).status_code == 200
+    r = client.post("/api/delivery-quote", json={"address": "  "})
+    assert r.status_code == 429 and "Retry-After" in r.headers
+
+
+def test_client_ip_behind_render_proxies():
+    from types import SimpleNamespace
+
+    from app.core.ratelimit import client_ip
+
+    def req(headers, host="10.197.204.143"):
+        return SimpleNamespace(headers=headers, client=SimpleNamespace(host=host))
+
+    # Render's internal hop (10.x) after the visitor is skipped, not used as the key
+    assert client_ip(req({"x-forwarded-for": "81.218.40.7, 10.197.204.143"})) == "81.218.40.7"
+    # A forged entry further left can't replace the real visitor
+    assert client_ip(req({"x-forwarded-for": "1.1.1.1, 81.218.40.7, 10.0.0.5"})) == "81.218.40.7"
+    # The edge's own header wins when present
+    assert client_ip(req({"cf-connecting-ip": "77.137.5.4",
+                          "x-forwarded-for": "81.218.40.7"})) == "77.137.5.4"  # fmt: skip
+    # Garbage in the edge header is ignored; local development falls back to the socket
+    assert client_ip(req({"cf-connecting-ip": "not-an-ip"}, host="127.0.0.1")) == "127.0.0.1"

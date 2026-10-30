@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Header
 
 from app.api.catalog import Lang
 from app.core.db import Db
+from app.core.ratelimit import limit
 from app.models.orders import EVENT_TYPES
 from app.schemas.orders import (
     ItemIn,
@@ -31,7 +32,7 @@ def event_types() -> list[str]:
     return list(EVENT_TYPES)
 
 
-@router.post("/orders", status_code=201)
+@router.post("/orders", status_code=201, dependencies=[Depends(limit("orders", 10, 3600))])
 def create_order(body: OrderCreate, db: Db, geocode: Geo, lang: Lang = "he") -> OrderCreated:
     return service.create_order(db, body, lang, geocode)
 

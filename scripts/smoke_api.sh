@@ -34,10 +34,11 @@ echo "Phase 3.1: public rules"
 S=$(curl -s "$B/api/public-settings")
 check "lead time is 7 days"   7 "$(jq -r .lead_time_days <<<"$S")"
 check "food minimum 500"      500.00 "$(jq -r .min_food_total <<<"$S")"
-check "address too long"      422 "$(code -G "$B/api/delivery-quote" --data-urlencode "address=$(printf 'a%.0s' {1..501})")"
-Q=$(curl -s -G "$B/api/delivery-quote" --data-urlencode "address=יפו 97, ירושלים")
+quote() { curl -s -X POST "$B/api/delivery-quote" -H 'Content-Type: application/json' -d "$(jq -nc --arg a "$1" '{address:$a}')"; }
+check "address too long"      422 "$(code -X POST "$B/api/delivery-quote" -H 'Content-Type: application/json' -d "$(jq -nc --arg a "$(printf 'a%.0s' {1..501})" '{address:$a}')")"
+Q=$(quote "יפו 97, ירושלים")
 check "jerusalem address found" true "$(jq -r .found <<<"$Q")"
-Q=$(curl -s -G "$B/api/delivery-quote" --data-urlencode "address=הרצל 1, תל אביב")
+Q=$(quote "הרצל 1, תל אביב")
 check "tel aviv is too far"   true "$(jq -r .too_far <<<"$Q")"
 
 echo "Phase 3: order lifecycle"
