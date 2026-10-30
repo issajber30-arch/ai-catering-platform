@@ -28,6 +28,12 @@ class ZonePatch(NotNullPatch):
     is_active: bool | None = None
 
 
+class PublicZoneOut(Out):
+    id: uuid.UUID
+    name: str
+    fee: Decimal
+
+
 class ZoneOut(Out):
     id: uuid.UUID
     name: str
