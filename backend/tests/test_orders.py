@@ -765,3 +765,22 @@ def test_quote_rate_limit(client):
         assert client.post("/api/delivery-quote", json={"address": "  "}).status_code == 200
     r = client.post("/api/delivery-quote", json={"address": "  "})
     assert r.status_code == 429 and "Retry-After" in r.headers
+
+
+def test_client_ip_behind_render_proxies():
+    from types import SimpleNamespace
+
+    from app.core.ratelimit import client_ip
+
+    def req(headers, host="10.197.204.143"):
+        return SimpleNamespace(headers=headers, client=SimpleNamespace(host=host))
+
+    # Render's internal hop (10.x) after the visitor is skipped, not used as the key
+    assert client_ip(req({"x-forwarded-for": "81.218.40.7, 10.197.204.143"})) == "81.218.40.7"
+    # A forged entry further left can't replace the real visitor
+    assert client_ip(req({"x-forwarded-for": "1.1.1.1, 81.218.40.7, 10.0.0.5"})) == "81.218.40.7"
+    # The edge's own header wins when present
+    assert client_ip(req({"cf-connecting-ip": "77.137.5.4",
+                          "x-forwarded-for": "81.218.40.7"})) == "77.137.5.4"  # fmt: skip
+    # Garbage in the edge header is ignored; local development falls back to the socket
+    assert client_ip(req({"cf-connecting-ip": "not-an-ip"}, host="127.0.0.1")) == "127.0.0.1"

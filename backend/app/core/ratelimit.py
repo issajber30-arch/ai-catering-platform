@@ -1,3 +1,4 @@
+import ipaddress
 import threading
 import time
 from collections import defaultdict, deque
@@ -11,10 +12,25 @@ _hits: dict[tuple[str, str], deque] = defaultdict(deque)
 _lock = threading.Lock()
 
 
+def _public(ip: str) -> bool:
+    try:
+        return ipaddress.ip_address(ip).is_global
+    except ValueError:
+        return False
+
+
 def client_ip(request: Request) -> str:
-    # Rightmost entry is the one our own proxy appended; the leftmost ones are client-forgeable.
+    """The visitor's address behind Render's edge (Cloudflare) and internal proxies.
+    1. A header the edge sets itself (it overwrites any value the client sends).
+    2. Else the rightmost *public* X-Forwarded-For entry: proxies append to the right,
+       internal hops (10.x) are skipped, and forged entries sit further left.
+    3. Else the direct connection (local development)."""
+    for name in ("cf-connecting-ip", "true-client-ip"):
+        ip = request.headers.get(name, "").strip()
+        if _public(ip):
+            return ip
     parts = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",")]
-    if ip := next((p for p in reversed(parts) if p), None):
+    if ip := next((p for p in reversed(parts) if _public(p)), None):
         return ip
     return request.client.host if request.client else "unknown"
 

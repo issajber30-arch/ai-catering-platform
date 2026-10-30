@@ -395,6 +395,8 @@ def test_tool_schemas_never_mix_enum_with_type_list():
     def walk(node):
         if isinstance(node, dict):
             assert not ("enum" in node and isinstance(node.get("type"), list)), node
+            # strict tools reject array length keywords; Pydantic enforces the limit instead
+            assert not {"maxItems", "minItems"} & node.keys(), node
             for value in node.values():
                 walk(value)
         elif isinstance(node, list):

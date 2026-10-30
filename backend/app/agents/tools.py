@@ -184,7 +184,7 @@ _REGISTRY = {
         "Backend-computed recommended quantities for the current order's dishes. Pass dish_ids "
         "(or null) to also preview dishes not yet in the order; those entries have preview true.",
         _schema({"dish_ids": {"anyOf": [
-            {"type": "array", "items": _ID, "maxItems": 20}, {"type": "null"}]}}),
+            {"type": "array", "items": _ID}, {"type": "null"}]}}),
         QuantityArgs, get_quantity_recommendations),
     "propose_order_change": (
         "Propose adding dishes, changing quantities or removing dishes. This does NOT change the "
