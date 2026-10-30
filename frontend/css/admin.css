@@ -71,3 +71,5 @@ dd { margin: 0; overflow-wrap: anywhere; }
 label.filter { max-inline-size: 280px; }
 td input[type="number"] { inline-size: 7rem; padding: var(--space-2); border: 1px solid #b9b2a6; border-radius: var(--radius); }
 .notice { padding: var(--space-2) var(--space-3); border: 1px solid #d9a441; border-radius: var(--radius); background: #fff7e6; color: #7a4a00; font-weight: 600; }
+
+h1, h2, h3 { font-family: var(--ep-font-head); letter-spacing: -0.01em; }

@@ -16,7 +16,8 @@
   --space-8: 32px;
   --radius: 12px;
   --shadow-1: 0 1px 3px rgb(0 0 0 / 0.08);
-  --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  /* One family per role, covering Latin, Hebrew and Arabic: the browser picks the face per script. */
+  --font: "IBM Plex Sans", "IBM Plex Sans Hebrew", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -57,7 +58,7 @@ main {
   --ep-pareve: #3f6212;     --ep-pareve-bg: #f7fee7;
   --ep-vegan: #854d0e;      --ep-vegan-bg: #fefce8;
   --ep-pending: #92400e;    --ep-pending-bg: #fffbeb;
-  --ep-font-head: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
-  --ep-font-body: Inter, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --ep-font-head: "Frank Ruhl Libre", "Noto Naskh Arabic", Georgia, "Times New Roman", serif;
+  --ep-font-body: var(--font);
   --ep-target: 44px;
 }
