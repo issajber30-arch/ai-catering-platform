@@ -46,7 +46,9 @@ Phase 3.1 rules (server-enforced): event date ≥ today + `lead_time_days` (422 
 
 Every mutation returns the full updated order (new `version`). A stale `version` → `409 order_version_conflict`.
 
-## AI assistant (Phase 4)
+## AI assistant (Phase 4, implemented)
+
+All routes need `X-Order-Token`; chat works only on `draft` orders. Errors: 409 `proposal_not_pending`, 409 `order_version_conflict` (proposal becomes `expired`), 409 `conflict` (assistant still answering), 429 `rate_limited`, 413 (chat body > 16 KiB), 503 "The assistant is unavailable right now. Your order is unchanged." `GET /api/orders/{id}/chat` returns visible messages `[{id, role, text, created_at}]`. Proposals also carry `diff: [{dish_id, name, current, proposed}]` and `rationale`. Owner: `GET /api/admin/orders/{id}/assistant` → `{message_count, last_message_at, proposals}` (no chat text by design).
 
 | Method | Path | Notes |
 |---|---|---|
