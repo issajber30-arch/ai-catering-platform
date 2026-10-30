@@ -20,6 +20,7 @@ class OrderStatus(enum.StrEnum):
     pending_approval = "pending_approval"
     approved = "approved"
     rejected = "rejected"
+    cancelled = "cancelled"
 
 
 class Customer(Base):
@@ -89,6 +90,8 @@ class Order(Base):
     submitted_at: Mapped[dt.datetime | None]
     decided_at: Mapped[dt.datetime | None]
     decision_note: Mapped[str | None] = mapped_column(Text)
+    cancelled_at: Mapped[dt.datetime | None]
+    cancel_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[dt.datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
     customer: Mapped[Customer] = relationship()

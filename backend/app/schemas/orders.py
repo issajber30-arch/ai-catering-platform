@@ -86,6 +86,10 @@ class DecisionIn(BaseModel):
     note: Note | None = None
 
 
+class CancelIn(BaseModel):
+    note: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+
+
 class ItemOut(BaseModel):
     dish_id: uuid.UUID
     name: str
@@ -135,6 +139,8 @@ class OrderOut(PricingOut):
     submitted_at: dt.datetime | None
     decided_at: dt.datetime | None
     decision_note: str | None
+    cancelled_at: dt.datetime | None
+    cancel_note: str | None
     warnings: list[str]
     delivery_km: Decimal | None
     delivery_fee_estimated: bool

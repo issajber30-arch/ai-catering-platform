@@ -257,7 +257,7 @@ async function dishExtras(dish, reload) {
 }
 
 // ---- orders
-const STATUS_TEXT = { draft: "Draft", pending_approval: "Awaiting approval", approved: "Approved", rejected: "Rejected" };
+const STATUS_TEXT = { draft: "Draft", pending_approval: "Awaiting approval", approved: "Approved", rejected: "Rejected", cancelled: "Cancelled" };
 const money = (v, cur) => `${Number(v).toFixed(2)} ${cur}`;
 const statusBadge = (st) => h("span", { class: `badge badge-${st}` }, STATUS_TEXT[st] ?? st);
 
@@ -312,6 +312,28 @@ async function orderDetail(id, refresh) {
       h("button", { type: "button", class: "danger", onclick: () => ask("reject") }, "Reject"));
   }
   idle();
+  const why = h("textarea", { maxlength: 1000, rows: 3 });
+  const cancelBox = h("div", { class: "decision" });
+  const doCancel = () => run(async () => {
+    try {
+      await api(`/api/admin/orders/${id}/cancel`, { method: "POST", body: JSON.stringify({ note: why.value.trim() }) });
+      await refresh(id);
+      say("Order cancelled.");
+    } catch (e) {
+      if (e.code !== "invalid_transition") throw e;
+      await refresh(id);
+      say("This order can no longer be cancelled. The view was refreshed.", "error");
+    }
+  });
+  const askCancel = () => cancelBox.replaceChildren(
+    h("span", { role: "alert" }, "Cancel this order? The customer will see your note."),
+    h("button", { type: "button", class: "danger", onclick: doCancel }, "Yes, cancel"),
+    h("button", { type: "button", onclick: idleCancel }, "Keep order"));
+  function idleCancel() {
+    cancelBox.replaceChildren(h("button", { type: "button", class: "danger", disabled: !why.value.trim(), onclick: askCancel }, "Cancel order"));
+  }
+  why.addEventListener("input", idleCancel);
+  idleCancel();
   const ai = await api(`/api/admin/orders/${id}/assistant`);
   const diffText = (d) => `${d.name}: ${d.current == null ? "—" : d.current} → ${d.proposed == null ? "removed" : d.proposed}`;
   const assistant = h("div", { class: "assistant" },
@@ -340,7 +362,10 @@ async function orderDetail(id, refresh) {
     h("h3", {}, "Assistant"), assistant,
     o.status === "pending_approval"
       ? h("div", {}, h("label", {}, "Note (optional, up to 1000 characters)", note), actions)
-      : o.decided_at ? h("div", {}, h("h3", {}, "Decision"), dl([["Decided at", o.decided_at], ["Note", o.decision_note]])) : null);
+      : o.decided_at ? h("div", {}, h("h3", {}, "Decision"), dl([["Decided at", o.decided_at], ["Note", o.decision_note]])) : null,
+    o.status === "pending_approval" || o.status === "approved"
+      ? h("div", {}, h("h3", {}, "Cancel order"), h("label", {}, "Reason (required, shown to the customer, up to 1000 characters)", why), cancelBox) : null,
+    o.cancelled_at ? h("div", {}, h("h3", {}, "Cancellation"), dl([["Cancelled at", o.cancelled_at], ["Cancellation note", o.cancel_note]])) : null);
 }
 
 // ---- serving rules

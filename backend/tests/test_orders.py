@@ -250,6 +250,38 @@ def test_approve_reject_and_transitions(admin, client, make_dish, body):
     assert admin.post(f"{base}/{uuid.uuid4()}/approve").status_code == 404
 
 
+def test_cancel_order(admin, client, make_dish, body):
+    def pending():
+        o = new(client, body)
+        o = put_item(client, o, make_dish()).json()
+        submit(client, o, o["version"])
+        return o
+
+    base = "/api/admin/orders"
+    waiting, approved, rejected = pending(), pending(), pending()
+    admin.post(f"{base}/{approved['id']}/approve", json={"note": "ok"})
+    admin.post(f"{base}/{rejected['id']}/reject")
+    draft = new(client, body)
+    for o in (draft, rejected):
+        r = admin.post(f"{base}/{o['id']}/cancel", json={"note": "x"})
+        assert r.status_code == 409 and error_code(r) == "invalid_transition"
+    for note in ("", "   ", "x" * 1001):
+        assert admin.post(f"{base}/{waiting['id']}/cancel", json={"note": note}).status_code == 422
+    assert admin.post(f"{base}/{waiting['id']}/cancel").status_code == 422
+    done = admin.post(f"{base}/{approved['id']}/cancel", json={"note": "  sorry  "}).json()
+    assert done["status"] == "cancelled" and done["cancel_note"] == "sorry"
+    assert done["cancelled_at"] and done["decision_note"] == "ok" and done["decided_at"]
+    again = admin.post(f"{base}/{approved['id']}/cancel", json={"note": "x"})
+    assert again.status_code == 409
+    assert admin.post(f"{base}/{waiting['id']}/cancel", json={"note": "no"}).status_code == 200
+    seen = client.get(f"/api/orders/{approved['id']}", headers=hdr(approved)).json()
+    assert seen["status"] == "cancelled" and seen["cancel_note"] == "sorry"
+    edit = client.patch(f"/api/orders/{approved['id']}", headers=hdr(approved), json={"version": 9})
+    assert edit.status_code == 409
+    assert len(admin.get(f"{base}?status=cancelled").json()) == 2
+    assert admin.post(f"{base}/{uuid.uuid4()}/cancel", json={"note": "x"}).status_code == 404
+
+
 def test_admin_list_filter_and_order(admin, client, make_dish, body):
     a = new(client, body)
     b = new(client, body)

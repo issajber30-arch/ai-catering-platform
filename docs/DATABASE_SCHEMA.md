@@ -11,7 +11,7 @@ Conventions **[RECOMMENDATION]**: `uuid` PKs (`gen_random_uuid()`), `timestamptz
 | `pricing_unit` | `per_guest`, `per_tray`, `per_weight`, `per_item` | Decision 6 |
 | `kashrut_class` | `meat`, `dairy`, `pareve` | Decision 9 |
 | `fulfillment_type` | `pickup`, `delivery` | Decision 8 |
-| `order_status` | `draft`, `pending_approval`, `approved`, `rejected` | Spec §10 (preliminary) |
+| `order_status` | `draft`, `pending_approval`, `approved`, `rejected`, `cancelled` | Spec §10 (preliminary) |
 | `proposal_status` | `pending`, `approved`, `rejected`, `expired`, `failed` | AI design |
 | `allergen_status` | `contains`, `free`, `unknown` | Decision 9 — unknown ≠ free |
 
@@ -97,6 +97,8 @@ A missing row = **unknown**.
 | subtotal, delivery_fee, total | numeric(10,2) null | Computed by backend; frozen at submission |
 | submitted_at, decided_at | timestamptz null | |
 | decision_note | text null | Owner's note on approve/reject |
+| cancelled_at | timestamptz null | Set when the owner cancels |
+| cancel_note | text null | Required reason (1-1000 chars), shown to the customer |
 | created_at, updated_at | timestamptz | |
 
 ### order_items
@@ -142,6 +144,7 @@ Phase 4 (migration `20261030000001_ai.sql`): `ai_messages` also stores `input_to
 | draft | pending_approval | Customer (owner of order) |
 | pending_approval | approved | Owner |
 | pending_approval | rejected | Owner |
+| pending_approval, approved | cancelled | Owner |
 
 Proposals may only execute while order is `draft`.
 

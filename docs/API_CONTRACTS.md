@@ -92,6 +92,7 @@ Proposal shape:
 | GET | `/api/admin/orders?status=` · GET `/api/admin/orders/{id}` |
 | GET | `/api/admin/quantity-rules` · PUT/DELETE `/api/admin/quantity-rules/{category_id}` `{per_adult, per_child, round_step}` |
 | POST | `/api/admin/orders/{id}/approve` · `/api/admin/orders/{id}/reject` `{note}` |
+| POST | `/api/admin/orders/{id}/cancel` `{note}` (required, 1-1000 chars after trim; 409 `invalid_transition` unless pending_approval or approved) |
 
 ## Order status transitions
 
@@ -100,5 +101,6 @@ Proposal shape:
 | draft → pending_approval | `POST /api/orders/{id}/submit` | Order's customer |
 | pending_approval → approved | `POST /api/admin/orders/{id}/approve` | Owner |
 | pending_approval → rejected | `POST /api/admin/orders/{id}/reject` | Owner |
+| pending_approval or approved → cancelled | `POST /api/admin/orders/{id}/cancel` | Owner |
 
 Any other transition → `409 invalid_transition`. The AI agent has no tool that triggers these.
