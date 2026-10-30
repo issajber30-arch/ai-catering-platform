@@ -11,7 +11,9 @@ from app.core.storage import MAX_IMAGE_BYTES, detect_image, get_uploader
 from app.models.catalog import Allergen, Dish, DishCategory
 from app.models.logistics import BlockedDate, DeliveryZone, TimeSlot
 from app.models.orders import OrderStatus, QuantityRule
+from app.repositories import ai as ai_repo
 from app.repositories import catalog as repo
+from app.schemas.ai import ProposalOut
 from app.schemas.catalog import (
     CategoryIn,
     CategoryOut,
@@ -190,6 +192,28 @@ def list_orders(db: Db, status: OrderStatus | None = None) -> list[OrderSummary]
 @router.get("/orders/{order_id}")
 def get_order(order_id: uuid.UUID, db: Db) -> OrderOut:
     return order_service.admin_order(db, order_id)
+
+
+@router.get("/orders/{order_id}/assistant")
+def order_assistant(order_id: uuid.UUID, db: Db) -> dict:
+    # Counts + proposals only: chat text is deliberately hidden (owner-facing injection surface).
+    order_service.admin_order(db, order_id)  # 404 for an unknown order
+    conv = ai_repo.conversation(db, order_id)
+    msgs = [
+        m
+        for m in (ai_repo.messages(db, conv.id) if conv else [])
+        if m.role in ("user", "assistant")
+    ]
+    shown = [
+        m
+        for m in msgs
+        if m.role == "user" or any(b.get("type") == "text" and b.get("text") for b in m.content)
+    ]
+    return {
+        "message_count": len(shown),
+        "last_message_at": shown[-1].created_at if shown else None,
+        "proposals": [ProposalOut.model_validate(p) for p in ai_repo.proposals(db, order_id, None)],
+    }
 
 
 @router.post("/orders/{order_id}/approve")

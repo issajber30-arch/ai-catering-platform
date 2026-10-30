@@ -312,6 +312,13 @@ async function orderDetail(id, refresh) {
       h("button", { type: "button", class: "danger", onclick: () => ask("reject") }, "Reject"));
   }
   idle();
+  const ai = await api(`/api/admin/orders/${id}/assistant`);
+  const diffText = (d) => `${d.name}: ${d.current == null ? "—" : d.current} → ${d.proposed == null ? "removed" : d.proposed}`;
+  const assistant = h("div", { class: "assistant" },
+    h("p", {}, `${ai.message_count} messages · last at ${cell(ai.last_message_at)}`),
+    ai.proposals.length ? h("ul", { class: "proposals" }, ...ai.proposals.map((p) => h("li", {},
+      h("span", { class: `badge badge-${p.status}` }, p.status), ` ${p.created_at} · ${money(p.price_before, o.currency)} → ${money(p.price_after, o.currency)}`,
+      h("ul", {}, ...p.diff.map((d) => h("li", {}, diffText(d))))))) : h("p", { class: "hint" }, "No proposals."));
   return h("div", { class: "card order-detail" },
     h("h2", {}, "Order ", statusBadge(o.status)),
     h("h3", {}, "Contact"), dl([["Name", o.customer.full_name], ["Email", o.customer.email], ["Phone", o.customer.phone]]),
@@ -330,6 +337,7 @@ async function orderDetail(id, refresh) {
         : o.delivery_fee_estimated ? `${money(o.delivery_fee, o.currency)} (estimate)` : money(o.delivery_fee, o.currency)],
       ["Total", money(o.total, o.currency)]]),
     h("p", { class: "hint" }, "Prices include VAT."),
+    h("h3", {}, "Assistant"), assistant,
     o.status === "pending_approval"
       ? h("div", {}, h("label", {}, "Note (optional, up to 1000 characters)", note), actions)
       : o.decided_at ? h("div", {}, h("h3", {}, "Decision"), dl([["Decided at", o.decided_at], ["Note", o.decision_note]])) : null);

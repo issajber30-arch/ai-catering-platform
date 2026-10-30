@@ -368,3 +368,20 @@ def test_usage_is_stored(client, llm, db, order):
                           "cache_creation_tokens, stop_reason FROM ai_messages "
                           "WHERE role = 'assistant'")).one()  # fmt: skip
     assert tuple(row) == (10, 5, 3, 2, "end_turn")
+
+
+def test_admin_assistant_summary(client, llm, make_dish, admin, order):
+    dish = make_dish(unit_price="100.00")
+    ghost = "00000000-0000-0000-0000-000000000000"
+    assert admin.get(f"/api/admin/orders/{ghost}/assistant").status_code == 404
+    empty = admin.get(f"/api/admin/orders/{order['id']}/assistant").json()
+    assert empty == {"message_count": 0, "last_message_at": None, "proposals": []}
+    make_proposal(client, llm, order, dish)
+    r = admin.get(f"/api/admin/orders/{order['id']}/assistant")
+    out = r.json()
+    assert out["message_count"] == 2 and out["last_message_at"]
+    assert len(out["proposals"]) == 1 and out["proposals"][0]["status"] == "pending"
+    assert out["proposals"][0]["price_after"] == "300.00"
+    assert "add it" not in r.text and "Please approve" not in r.text  # no chat bodies
+    client.headers.pop("Authorization")
+    assert client.get(f"/api/admin/orders/{order['id']}/assistant").status_code == 401
