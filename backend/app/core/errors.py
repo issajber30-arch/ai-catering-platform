@@ -13,6 +13,7 @@ CODES = {
     413: "file_too_large",
     415: "unsupported_media_type",
     422: "validation_error",
+    429: "rate_limited",
     502: "bad_gateway",
     503: "unavailable",
 }

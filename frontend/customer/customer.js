@@ -357,7 +357,7 @@ function viewMenu() {
       h("div", { class: "chips", role: "group", "aria-label": t().step2 }, chip("all", t().all), st.cats.map((c) => chip(c.id, c.name || c.name_he))),
       st.dishes.length ? h("ul", { class: "dishes", style: "list-style:none;padding:0;margin:0" }, st.dishes.map(dishCard)) : h("p", {}, t().noDishes),
       h("p", { class: "notice", id: "disclaimer" }, t().disclaimer)),
-    h("aside", {}, summaryCard(true)));
+    h("div", { class: "side" }, h("aside", {}, summaryCard(true)), ...assistantNodes()));
 }
 
 // ---- C3 summary (server values only)
@@ -428,13 +428,194 @@ function viewStatus() {
     h("button", { type: "button", onclick: () => resetOrder() }, t().newOrder));
 }
 
+
+// ---- C4 assistant (proposes only; every change needs Approve). Log and input persist across render().
+const DESKTOP = "(min-width: 900px)";
+const isPhone = () => !matchMedia(DESKTOP).matches;
+const iso = (x) => `\u2066${x}\u2069`; // LTR isolate so number pairs don't flip in RTL
+const fsi = (x) => `\u2068${x}\u2069`;
+const as = {
+  id: null, items: [], props: new Map(), open: false, sending: false, error: "", lang: null, think: null, stick: true,
+  log: h("div", { id: "as-log", class: "as-log", role: "log", "aria-live": "polite" }),
+  input: h("textarea", { id: "as-input", rows: 2, maxlength: 4000, enterkeyhint: "send",
+    onkeydown: (ev) => { if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); sendChat(); } } }),
+};
+const stateOf = (p) => ({ approved: "applied", rejected: "rejected", expired: "expired", failed: "expired" }[p.status] ?? "pending");
+function propItem(p) {
+  as.props.set(p.id, { p, state: stateOf(p), err: "" });
+  return { kind: "prop", id: p.id };
+}
+function ensureAssistant() {
+  if (as.id === st.cred.id) return;
+  Object.assign(as, { id: st.cred.id, items: [], props: new Map(), open: false, sending: false, error: "", lang: null, think: null, stick: true });
+  as.log.replaceChildren();
+  as.input.value = "";
+  loadAssistant(as.id);
+}
+async function loadAssistant(id) {
+  try {
+    const [msgs, pend] = await Promise.all([orderApi("/chat"), orderApi("/proposals?status=pending")]);
+    if (as.id !== id) return;
+    as.props = new Map();
+    as.items = [...msgs.filter((m) => m.role === "user" || m.role === "assistant").map((m) => ({ kind: "msg", role: m.role, text: m.text })),
+      ...pend.map(propItem)];
+    as.lang = null; as.stick = true;
+    render();
+  } catch { /* the assistant is optional; sending reports its own errors */ }
+}
+async function syncPending() {
+  const id = as.id;
+  const pend = await orderApi("/proposals?status=pending");
+  if (as.id !== id) return;
+  const ids = new Set(pend.map((p) => p.id));
+  for (const [pid, e] of as.props) if ((e.state === "pending" || e.state === "applying") && !ids.has(pid)) e.state = "expired";
+  for (const p of pend) if (!as.props.has(p.id)) as.items.push(propItem(p));
+  for (const it of as.items) if (it.kind === "prop") refreshCard(it);
+}
+
+const signed = (v) => new Intl.NumberFormat(LOCALES[st.lang], { style: "currency", currency: st.order.currency, signDisplay: "always" }).format(v);
+function diffLine(d) {
+  if (d.current == null) return `${t().asAdd} · ${fsi(d.name)} ${iso(`× ${num(d.proposed)}`)}`;
+  if (d.proposed == null) return `${t().asRemove} · ${fsi(d.name)}`;
+  return `${fsi(d.name)} · ${iso(`${num(d.current)} → ${num(d.proposed)}`)}`;
+}
+function fillCard(node, e) {
+  const p = e.p, cur = st.order.currency;
+  node.dataset.state = e.state;
+  const pending = e.state === "pending" || e.state === "applying";
+  const busy = e.state === "applying";
+  node.replaceChildren(...[
+    h("h3", {}, t().asSuggested),
+    h("ul", { class: "as-diff" }, p.diff.map((d) => h("li", {}, diffLine(d)))),
+    p.rationale && h("p", { class: "as-why", dir: "auto" }, p.rationale),
+    h("p", { class: "as-total" }, h("span", {}, `${t().asTotal} `),
+      // each amount in its own isolate: he/ar currency strings carry RTL marks that would otherwise swallow the arrow
+      iso(`${iso(money(p.price_before, cur))} → ${iso(money(p.price_after, cur))} (${iso(signed(Number(p.price_after) - Number(p.price_before)))})`)),
+    pending && h("div", { class: "actions" },
+      h("button", { type: "button", disabled: busy || st.busy, onclick: () => decide(p.id, "reject") }, t().asReject),
+      h("button", { type: "button", class: "primary", disabled: busy || st.busy, onclick: () => decide(p.id, "approve") }, busy ? t().asApplying : t().asApprove)),
+    e.state === "applied" && h("p", { class: "as-status" }, `✓ ${t().asApplied}`),
+    e.state === "rejected" && h("p", { class: "as-status" }, t().asRejected),
+    e.state === "expired" && h("p", { class: "as-status" }, t().asExpired),
+    e.err && h("p", { class: "err", role: "alert" }, e.err),
+  ].filter(Boolean));
+}
+function refreshCard(it) { if (it.node) fillCard(it.node, as.props.get(it.id)); }
+function itemNode(it) {
+  if (it.kind === "msg") return h("div", { class: `as-msg ${it.role}` }, h("span", { class: "sr-only" }, it.role === "user" ? t().asYou : t().asBot), h("span", { dir: "auto" }, it.text));
+  const node = h("article", { class: "as-card", tabindex: "-1", "aria-label": t().asSuggested });
+  fillCard(node, as.props.get(it.id));
+  return node;
+}
+function paintLog() {
+  if (as.lang !== st.lang) {
+    as.log.replaceChildren(); as.think = null; as.lang = st.lang; as.stick = true;
+    for (const it of as.items) it.node = null;
+  }
+  as.think?.remove();
+  for (const it of as.items) if (!it.node) { it.node = itemNode(it); as.log.append(it.node); as.stick = true; }
+  if (as.sending) {
+    as.think ??= h("div", { class: "as-msg assistant thinking" }, t().asThinking);
+    as.think.textContent = t().asThinking;
+    as.log.append(as.think); as.stick = true;
+  }
+  as.log.setAttribute("aria-label", t().asTitle);
+}
+function openAssistant() { as.open = true; as.stick = true; render(); as.input.focus(); }
+function closeAssistant() { as.open = false; render(); $("as-fab")?.focus(); }
+function trapTab(ev) {
+  if (ev.key !== "Tab" || !isPhone() || !as.open) return;
+  const f = [...ev.currentTarget.querySelectorAll("button:not(:disabled), textarea:not(:disabled), [tabindex='-1']:not(article)")].filter((x) => x.offsetParent);
+  if (!f.length) return;
+  const first = f[0], last = f[f.length - 1];
+  if (ev.shiftKey && (document.activeElement === first || document.activeElement === ev.currentTarget)) { ev.preventDefault(); last.focus(); }
+  else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+}
+function assistantNodes() {
+  ensureAssistant();
+  paintLog();
+  const phone = isPhone();
+  Object.assign(as.input, { placeholder: t().asPlaceholder, disabled: as.sending });
+  as.input.setAttribute("aria-label", t().asPlaceholder);
+  return [
+    h("button", { type: "button", id: "as-fab", class: "as-fab primary", title: t().asOpen, "aria-label": t().asOpen, "aria-haspopup": "dialog",
+      "aria-expanded": String(as.open), onclick: openAssistant }, "✦"),
+    h("div", { class: `as-backdrop${as.open ? " open" : ""}`, "aria-hidden": "true", onclick: closeAssistant }),
+    h("section", { id: "as-panel", tabindex: "-1", class: `as-panel ep-card${as.open ? " open" : ""}`, "aria-labelledby": "as-h", onkeydown: trapTab,
+      ...(phone ? { role: "dialog", "aria-modal": "true" } : { role: "complementary" }) },
+      h("div", { class: "as-head" },
+        h("div", {}, h("h2", { id: "as-h" }, t().asTitle), h("p", { class: "hint" }, t().asNote)),
+        h("button", { type: "button", id: "as-close", class: "as-close", "aria-label": t().asClose, onclick: closeAssistant }, "×")),
+      !as.items.length && !as.sending && h("p", { class: "hint as-empty" }, t().asEmpty),
+      as.log,
+      as.error && h("p", { class: "err", role: "alert" }, as.error),
+      h("form", { class: "as-form", onsubmit: (ev) => { ev.preventDefault(); sendChat(); } },
+        as.input, h("button", { type: "submit", class: "primary", id: "as-send", disabled: as.sending }, as.sending ? t().asThinking : t().asSend))),
+  ];
+}
+
+async function sendChat() {
+  const text = as.input.value.trim();
+  if (!text || as.sending) return;
+  const id = as.id;
+  as.sending = true; as.error = "";
+  render();
+  $("as-panel")?.focus({ preventScroll: true });
+  try {
+    const r = await orderApi("/chat", { method: "POST", body: JSON.stringify({ message: text }) });
+    if (as.id !== id) return;
+    as.input.value = "";
+    as.items.push({ kind: "msg", role: "user", text }, { kind: "msg", role: "assistant", text: r.reply }, ...r.proposals.map(propItem));
+    await syncPending().catch(() => {});
+  } catch (e) {
+    if (as.id !== id) return;
+    if (e.status === 404 || e.code === "invalid_transition") await handle(e);
+    else as.error = { 429: t().asRate, 503: t().asUnavail, 413: t().asTooLarge }[e.status] ?? t().error;
+  } finally {
+    if (as.id === id) {
+      as.sending = false;
+      render();
+      if (["as-panel", undefined, ""].includes(document.activeElement?.id) && !as.input.disabled) as.input.focus();
+    }
+  }
+}
+
+async function decide(pid, action) {
+  const e = as.props.get(pid), it = as.items.find((x) => x.id === pid);
+  if (!e || e.state !== "pending" || st.busy) return;
+  e.state = "applying"; e.err = "";
+  refreshCard(it);
+  await guard(async () => {
+    try {
+      if (action === "approve") {
+        st.order = await orderApi(`/proposals/${pid}/approve`, { method: "POST" });
+        e.state = "applied";
+        await loadRecs();
+      } else {
+        await orderApi(`/proposals/${pid}/reject`, { method: "POST" });
+        e.state = "rejected";
+      }
+    } catch (err) {
+      if (err.code === "order_version_conflict") { e.state = "expired"; await reloadOrder().catch(() => {}); }
+      else if (err.code === "proposal_not_pending") { await Promise.all([syncPending(), reloadOrder()]).catch(() => {}); e.state = "expired"; }
+      else if (err.status === 404 || err.code === "invalid_transition") { e.state = "pending"; throw err; }
+      else { e.state = "pending"; e.err = err.status === 429 ? t().asRate : t().error; }
+    }
+  });
+  refreshCard(it);
+  if (e.state !== "pending") it.node?.focus({ preventScroll: true });
+}
+
 // ---- shell
 function steps(cur) {
   const names = [["event", t().step1], ["menu", t().step2], ["review", t().step3]];
   return h("ol", { class: "steps" }, names.map(([k, label]) => h("li", k === cur ? { "aria-current": "step" } : {}, label)));
 }
+let placeFab = () => {};
+let barObs;
 function render() {
   const focusId = document.activeElement?.id;
+  const logTop = as.log.scrollTop;
   document.documentElement.lang = st.lang;
   document.documentElement.dir = DIR[st.lang];
   document.title = "CaterKing";
@@ -442,7 +623,21 @@ function render() {
     Object.entries(LANGS).map(([k, label]) => h("button", { type: "button", lang: k, "aria-pressed": String(k === st.lang), onclick: () => setLang(k) }, label))));
   const step = !st.order ? "event" : st.order.status !== "draft" ? "status" : st.step;
   const view = { event: viewEvent, menu: viewMenu, review: viewReview, status: viewStatus }[step]();
+  if (step !== "menu") as.open = false;
   app.replaceChildren(...(step === "status" ? [view] : [steps(step), view]));
+  document.body.classList.toggle("as-lock", as.open && isPhone());
+  as.log.scrollTop = as.stick ? as.log.scrollHeight : logTop;
+  as.stick = false;
+  barObs?.disconnect();
+  const bar = document.querySelector(".layout aside");
+  if (bar && "ResizeObserver" in window) {
+    // Keep the floating button just above the summary bar wherever the bar actually sits
+    // (on short pages the sticky bar is not at the bottom of the screen).
+    placeFab = () => document.documentElement.style.setProperty("--as-bar", `${Math.max(0, innerHeight - bar.getBoundingClientRect().top)}px`);
+    barObs = new ResizeObserver(placeFab);
+    barObs.observe(bar);
+    placeFab();
+  } else placeFab = () => {};
   if (focusId) $(focusId)?.focus({ preventScroll: true });
   if (st.order) $("live").textContent = `${t().total}: ${money(st.order.total, st.order.currency)}`;
 }
@@ -494,4 +689,9 @@ async function boot() {
   }
   render();
 }
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && as.open && isPhone()) closeAssistant(); });
+matchMedia(DESKTOP).addEventListener("change", render);
 boot();
+
+addEventListener("scroll", () => placeFab(), { passive: true });
+addEventListener("resize", () => placeFab());

@@ -1,6 +1,6 @@
 # AI Agent Design
 
-Status: **Draft v0.1** — implementation in Phase 4. LLM provider **[OPEN #16]**.
+Status: **Implemented (Phase 4)**. Provider: Anthropic Claude, model `claude-opus-5-5`, effort `low`, adaptive thinking, server-side refusal fallback (`fallbacks: "default"`), prompt caching on the frozen system prompt + tools. Manual tool loop in `backend/app/agents/assistant.py`, max 8 model calls per message, one turn at a time per order, 30 customer messages per order per hour, token usage stored per message. `update_details` is not offered yet. Live-tested 2026-10-30 (Hebrew/English, injection attempts refused).
 
 ## 1. Scope
 

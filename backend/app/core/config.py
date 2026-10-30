@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     default_currency: str = "ILS"
     business_timezone: str = "Asia/Jerusalem"
     storage_bucket: str = "dish-images"
+    anthropic_api_key: str | None = None
 
 
 @lru_cache

@@ -22,7 +22,8 @@ SUPABASE_URL = "https://test-project.supabase.co"
 TABLES = (
     "dish_allergens, dish_dietary, dishes, dish_categories, allergens, "
     "delivery_zones, time_slots, blocked_dates, order_items, orders, events, customers, "
-    "quantity_rules, geocode_cache, business_settings"
+    "quantity_rules, geocode_cache, business_settings, ai_change_proposals, ai_messages, "
+    "ai_conversations"
 )
 
 

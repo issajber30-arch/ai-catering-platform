@@ -114,6 +114,8 @@ A missing row = **unknown**.
 
 While `draft`, prices are read live from `dishes`; on `pending_approval` the snapshot columns become authoritative.
 
+Phase 4 (migration `20261030000001_ai.sql`): `ai_messages` also stores `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_creation_tokens`, `stop_reason` and an identity `seq`; `ai_change_proposals` adds `diff jsonb` and `rationale`; one `pending` proposal per order (partial unique index).
+
 ### ai_conversations
 `id` uuid PK · `order_id` FK not null · `created_at` · index on `order_id`
 
