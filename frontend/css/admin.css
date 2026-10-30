@@ -1,0 +1,48 @@
+/* Logical properties only, so the layout mirrors cleanly for RTL. */
+nav { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-block-end: var(--space-4); }
+button, input, select, textarea { font: inherit; }
+button {
+  padding-block: var(--space-2);
+  padding-inline: var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-accent);
+  cursor: pointer;
+  min-block-size: 44px;
+}
+button[aria-pressed="true"], button.primary { background: var(--color-accent); color: #fff; }
+button.danger { border-color: var(--color-danger); color: var(--color-danger); }
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-4);
+  margin-block-end: var(--space-4);
+}
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; inline-size: 100%; }
+th, td { text-align: start; padding: var(--space-2); border-block-end: 1px solid #e6e1d8; }
+td.actions { white-space: nowrap; }
+td.actions button { margin-inline-end: var(--space-2); }
+label { display: block; margin-block-end: var(--space-3); font-weight: 600; }
+label.check { font-weight: 400; }
+label input:not([type="checkbox"]), label select, label textarea {
+  display: block;
+  inline-size: 100%;
+  padding: var(--space-2);
+  margin-block-start: var(--space-1);
+  border: 1px solid #b9b2a6;
+  border-radius: 8px;
+  background: #fff;
+}
+fieldset { border: 1px solid #e6e1d8; border-radius: var(--radius); margin-block-end: var(--space-3); }
+.grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.error { color: var(--color-danger); }
+.ok { color: var(--color-success); }
+.thumb { max-inline-size: 160px; max-block-size: 120px; border-radius: 8px; }
+@media (max-width: 480px) {
+  main { padding-inline: var(--space-3); }
+  button { inline-size: 100%; }
+  td.actions button { inline-size: auto; }
+}
