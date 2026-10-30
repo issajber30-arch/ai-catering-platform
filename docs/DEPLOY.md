@@ -42,5 +42,15 @@ The service deploys from the **`dev`** branch, so merged PRs go live automatical
 
 Once the site is up, add your menu, the kitchen address in the admin Settings tab, and serving rules. They're needed for real quotes.
 
-## Production (later)
-Production gets a second Render service from `main` and a separate Supabase project. Set it up only when you're ready, and only after the dev site has been checked end to end.
+## Production
+Production is a second Render service, **`caterking`**, defined in `render.yaml`. It deploys from **`main`** on the Starter plan (always on, about $7/month). It has its **own** Supabase project, `caterking-prod` (`vowkkljvaymxzhkllvxl`, Ireland), so real orders never mix with test data.
+
+1. **Release:** merge a PR from `dev` into `main`. Only merge what you've already checked on the dev site.
+2. **Render:** open the Blueprint and click **Sync**. Render proposes the new `caterking` service and asks for its secrets:
+   - `DATABASE_URL`: the line in `~/Desktop/caterking-PROD-DATABASE_URL.txt`. Delete that file afterwards.
+   - `SUPABASE_URL`: `https://vowkkljvaymxzhkllvxl.supabase.co`
+   - `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`: from the `caterking-prod` project, under Project Settings → API.
+   - `ANTHROPIC_API_KEY`: a fresh key with a monthly spend limit.
+3. **Owner login:** in `caterking-prod`, go to Authentication → Users and add your user. Claude then grants it the admin role.
+4. **Menu:** add the real menu, kitchen address, time slots and serving rules in the production admin.
+5. **Check:** run `scripts/smoke_api.sh https://<production-url>`, then place one order and cancel it from the admin.

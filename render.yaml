@@ -1,4 +1,4 @@
-# Render blueprint: the CaterKing dev site, built from the Dockerfile, deployed from `dev`.
+# Render blueprint: CaterKing dev (from `dev`, free) and production (from `main`, starter, always on).
 # Secrets use `sync: false`: Render asks for them in its dashboard; they never live in git.
 services:
   - type: web
@@ -19,6 +19,34 @@ services:
       - key: BUSINESS_TIMEZONE
         value: Asia/Jerusalem
       - key: DATABASE_URL # Supabase *session pooler* string (port 5432), with +psycopg after postgresql
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  - type: web
+    name: caterking
+    runtime: docker
+    plan: starter # always on, ~$7/month (owner approved launch on 2026-10-30)
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEFAULT_CURRENCY
+        value: ILS
+      - key: STORAGE_BUCKET
+        value: dish-images
+      - key: BUSINESS_TIMEZONE
+        value: Asia/Jerusalem
+      - key: DATABASE_URL # production Supabase project caterking-prod, session pooler string
         sync: false
       - key: SUPABASE_URL
         sync: false

@@ -36,3 +36,4 @@ When a decision is made, record it here and move the row out of the table above.
 | 2026-10-29 | 18 | Weight unit: price per kg | Owner |
 | 2026-10-29 | 20 | Business name: CaterKing (logo, colors: Stitch "Haute Epicure" style; logo still open) | Owner |
 | 2026-10-30 | — | Hosting: Render (web, from `render.yaml`) + Supabase (Postgres, Auth, Storage) instead of Railway. Render was already connected to GitHub; Render's free Postgres expires after 30 days, and Supabase is needed for Auth/Storage anyway | Owner ("use what's better and more efficient") |
+| 2026-10-30 | — | Launch: production on Render Starter (`caterking`, from `main`) with a separate Supabase project `caterking-prod`; go live after the Editorial redesign and the real menu | Owner |
