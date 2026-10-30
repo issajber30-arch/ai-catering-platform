@@ -6,7 +6,7 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
@@ -45,6 +45,10 @@ class DishesArgs(_Args):
     vegetarian: bool | None
     vegan: bool | None
     kashrut: KashrutClass | None
+
+
+class QuantityArgs(_Args):
+    dish_ids: list[uuid.UUID] | None = Field(max_length=20)
 
 
 class DishArgs(_Args):
@@ -117,8 +121,12 @@ def get_order_pricing(c: Ctx, _: NoArgs):
     }  # fmt: skip
 
 
-def get_quantity_recommendations(c: Ctx, _: NoArgs):
-    return [r.model_dump() for r in orders.bound_recommendations(c.db, c.order_id)]
+def get_quantity_recommendations(c: Ctx, a: QuantityArgs):
+    if a.dish_ids:
+        found = orders.preview_recommendations(c.db, c.order_id, a.dish_ids)
+    else:
+        found = orders.bound_recommendations(c.db, c.order_id)
+    return [r.model_dump() for r in found]
 
 
 def propose_order_change(c: Ctx, a: ProposeArgs):
@@ -173,8 +181,11 @@ _REGISTRY = {
     "get_order_pricing": ("Backend-computed itemised pricing of the current order.",
                           _schema(), NoArgs, get_order_pricing),
     "get_quantity_recommendations": (
-        "Backend-computed recommended quantities for the current order's dishes.",
-        _schema(), NoArgs, get_quantity_recommendations),
+        "Backend-computed recommended quantities for the current order's dishes. Pass dish_ids "
+        "(or null) to also preview dishes not yet in the order; those entries have preview true.",
+        _schema({"dish_ids": {"anyOf": [
+            {"type": "array", "items": _ID}, {"type": "null"}]}}),
+        QuantityArgs, get_quantity_recommendations),
     "propose_order_change": (
         "Propose adding dishes, changing quantities or removing dishes. This does NOT change the "
         "order: the customer must approve the proposal card. Prices are computed by the backend.",

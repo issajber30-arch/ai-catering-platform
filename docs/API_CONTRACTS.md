@@ -29,7 +29,7 @@ Common codes: `conflict` (409), `file_too_large` (413), `unsupported_media_type`
 
 ## Customer orders (Phase 3, implemented)
 
-Guest checkout (decision #1). `POST /api/orders` returns `access_token` once; every other customer route needs header `X-Order-Token`. A missing/wrong token and an unknown id both return 404. Customer routes accept `?lang=he|ar|en`. Public helpers: `GET /api/catalog/event-types`, `GET /api/public-settings` → `{lead_time_days, min_food_total, max_km}`, `GET /api/delivery-quote?address=` (1–500 chars) → `{found, km, fee, max_km, too_far}`. `GET /api/delivery-zones` remains for legacy zone orders only.
+Guest checkout (decision #1). `POST /api/orders` returns `access_token` once; every other customer route needs header `X-Order-Token`. A missing/wrong token and an unknown id both return 404. Customer routes accept `?lang=he|ar|en`. Public helpers: `GET /api/catalog/event-types`, `GET /api/public-settings` → `{lead_time_days, min_food_total, max_km}`, `POST /api/delivery-quote {address}` (1–500 chars; POST so the address stays out of URLs and logs) → `{found, km, fee, max_km, too_far}`. `GET /api/delivery-zones` remains for legacy zone orders only.
 
 Phase 3.1 rules (server-enforced): event date ≥ today + `lead_time_days` (422 "Events need at least N days' notice"); submit needs food subtotal ≥ `min_food_total` (422); delivery fee = base + per_km × straight-line km from the kitchen, max `delivery_max_km` (422 "choose pickup"); address not found → `delivery_fee: null`, `delivery_fee_estimated: true`, total excludes delivery. `OrderOut` adds `warnings` (`"mixes_meat_dairy"`), `delivery_km`, `delivery_fee_estimated`. Every response carries CSP, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` and `X-Frame-Options: DENY`. `time_slots.weekday`: Monday=0 … Sunday=6, null = any day.
 
@@ -42,6 +42,8 @@ Phase 3.1 rules (server-enforced): event date ≥ today + `lead_time_days` (422 
 | DELETE | `/api/orders/{id}/items/{dish_id}` | Remove dish; requires `version` |
 | GET | `/api/orders/{id}/pricing` | Itemized breakdown |
 | GET | `/api/orders/{id}/recommendations` | Quantity recommendations (rules **[OPEN #3]**) |
+
+Rate limits (per client IP, in memory; 429 `rate_limited` + `Retry-After`): `POST /api/orders` 10/hour, `POST /api/delivery-quote` 30/10 min, `POST /api/orders/{id}/chat` 60/hour.
 | POST | `/api/orders/{id}/submit` | `draft → pending_approval`; freezes snapshot |
 
 Every mutation returns the full updated order (new `version`). A stale `version` → `409 order_version_conflict`.

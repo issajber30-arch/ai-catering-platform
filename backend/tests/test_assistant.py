@@ -395,6 +395,8 @@ def test_tool_schemas_never_mix_enum_with_type_list():
     def walk(node):
         if isinstance(node, dict):
             assert not ("enum" in node and isinstance(node.get("type"), list)), node
+            # strict tools reject array length keywords; Pydantic enforces the limit instead
+            assert not {"maxItems", "minItems"} & node.keys(), node
             for value in node.values():
                 walk(value)
         elif isinstance(node, list):
@@ -416,3 +418,36 @@ def test_second_message_while_answering_is_refused():
         assert e.value.status == 409
     finally:
         assistant._busy.discard(order_id)
+
+
+def test_chat_rate_limit(client, llm, order, monkeypatch):
+    monkeypatch.setattr("app.services.conversations.RATE_LIMIT", 1000)  # per-order cap is lower
+    llm(*[say("hi")] * 60)
+    for _ in range(60):
+        assert chat(client, order).status_code == 200
+    r = chat(client, order)
+    assert r.status_code == 429 and "Retry-After" in r.headers
+
+
+def test_preview_quantity_for_unselected_dish(client, llm, make_dish, order):
+    dish = make_dish(unit_price="100.00")
+    fake = llm(
+        tool_round(("get_quantity_recommendations", {"dish_ids": [dish["id"]]})), say("About 3.")
+    )
+    assert chat(client, order, "how many?").status_code == 200
+    block = fake.kwargs[1]["messages"][-1]["content"][0]
+    rec = json.loads(block["content"])
+    assert "is_error" not in block
+    assert rec[0]["dish_id"] == dish["id"] and rec[0]["preview"] is True
+    assert rec[0]["recommended"] is not None or rec[0]["reason"] == "no_rule"
+    assert current(client, order)["items"] == [] and current(client, order)["version"] == 1
+
+
+def test_preview_unknown_dish_is_tool_error(client, llm, order):
+    fake = llm(
+        tool_round(("get_quantity_recommendations", {"dish_ids": [str(uuid.uuid4())]})),
+        say("Sorry"),
+    )
+    assert chat(client, order).status_code == 200
+    assert fake.kwargs[1]["messages"][-1]["content"][0]["is_error"] is True
+    assert current(client, order)["version"] == 1

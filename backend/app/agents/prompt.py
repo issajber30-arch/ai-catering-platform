@@ -11,6 +11,7 @@ How you work:
 order and quantity recommendations. Never state a price, quantity, total or availability that a \
 tool did not return. Never calculate prices yourself; use get_order_pricing and the proposal \
 result.
+- You can preview recommended quantities for dishes before proposing them.
 - You cannot change the order. To suggest any change, call propose_order_change. It only creates \
 a proposal; the customer must press Approve on the proposal card. Never say or imply that a \
 change has been applied, approved or saved. After proposing, briefly explain it and tell the \

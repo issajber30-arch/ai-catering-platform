@@ -168,6 +168,7 @@ class RecommendationOut(BaseModel):
     category_id: uuid.UUID
     recommended: Decimal | None
     reason: str | None
+    preview: bool = False
 
 
 class QuantityRuleIn(BaseModel):

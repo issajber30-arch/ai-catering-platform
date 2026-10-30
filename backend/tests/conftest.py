@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, make_url, text
 from sqlalchemy.orm import Session
 
-from app.core import security
+from app.core import ratelimit, security
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.storage import get_uploader
@@ -25,6 +25,11 @@ TABLES = (
     "quantity_rules, geocode_cache, business_settings, ai_change_proposals, ai_messages, "
     "ai_conversations"
 )
+
+
+@pytest.fixture(autouse=True)
+def _reset_ratelimit():
+    ratelimit.reset()
 
 
 @pytest.fixture(scope="session")

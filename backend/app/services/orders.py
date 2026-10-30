@@ -288,16 +288,32 @@ def bound_recommendations(db: Session, order_id) -> list[RecommendationOut]:
     return _recommendations(db, order)
 
 
-def _recommendations(db: Session, order: Order) -> list[RecommendationOut]:
+def preview_recommendations(db: Session, order_id, dish_ids: list) -> list[RecommendationOut]:
+    """Recommendations as if dish_ids were also selected; nothing is saved."""
+    order = repo.get_order(db, order_id)
+    if order is None:
+        raise _not_found()
+    extra = []
+    have = {i.dish_id for i in order.items}
+    for dish_id in dict.fromkeys(dish_ids):
+        dish = need(db, Dish, dish_id, "Dish")
+        check_dish(dish, dish.min_quantity or Decimal(0))
+        if dish_id not in have:
+            extra.append(dish)
+    return _recommendations(db, order, extra)
+
+
+def _recommendations(db: Session, order: Order, extra=()) -> list[RecommendationOut]:
     selected = [
         quantities.Selected(i.dish_id, i.dish.category_id, i.dish.pricing_unit) for i in order.items
-    ]
+    ] + [quantities.Selected(d.id, d.category_id, d.pricing_unit) for d in extra]
     rules = {
         cid: quantities.Rule(r.per_adult, r.per_child, r.round_step)
         for cid, r in repo.rules_by_category(db).items()
     }
     found = quantities.recommend(order.event.adults, order.event.children, selected, rules)
-    return [RecommendationOut(**vars(r)) for r in found]
+    previewed = {d.id for d in extra}
+    return [RecommendationOut(**vars(r), preview=r.dish_id in previewed) for r in found]
 
 
 def submit(db: Session, order_id, token, version, lang) -> OrderOut:
