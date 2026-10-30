@@ -487,7 +487,7 @@ function fillCard(node, e) {
   node.replaceChildren(...[
     h("h3", {}, t().asSuggested),
     h("ul", { class: "as-diff" }, p.diff.map((d) => h("li", {}, diffLine(d)))),
-    p.rationale && h("p", { class: "as-why" }, p.rationale),
+    p.rationale && h("p", { class: "as-why", dir: "auto" }, p.rationale),
     h("p", { class: "as-total" }, h("span", {}, `${t().asTotal} `),
       // each amount in its own isolate: he/ar currency strings carry RTL marks that would otherwise swallow the arrow
       iso(`${iso(money(p.price_before, cur))} → ${iso(money(p.price_after, cur))} (${iso(signed(Number(p.price_after) - Number(p.price_before)))})`)),
@@ -502,7 +502,7 @@ function fillCard(node, e) {
 }
 function refreshCard(it) { if (it.node) fillCard(it.node, as.props.get(it.id)); }
 function itemNode(it) {
-  if (it.kind === "msg") return h("div", { class: `as-msg ${it.role}` }, h("span", { class: "sr-only" }, it.role === "user" ? t().asYou : t().asBot), it.text);
+  if (it.kind === "msg") return h("div", { class: `as-msg ${it.role}` }, h("span", { class: "sr-only" }, it.role === "user" ? t().asYou : t().asBot), h("span", { dir: "auto" }, it.text));
   const node = h("article", { class: "as-card", tabindex: "-1", "aria-label": t().asSuggested });
   fillCard(node, as.props.get(it.id));
   return node;
@@ -611,6 +611,7 @@ function steps(cur) {
   const names = [["event", t().step1], ["menu", t().step2], ["review", t().step3]];
   return h("ol", { class: "steps" }, names.map(([k, label]) => h("li", k === cur ? { "aria-current": "step" } : {}, label)));
 }
+let placeFab = () => {};
 let barObs;
 function render() {
   const focusId = document.activeElement?.id;
@@ -630,9 +631,13 @@ function render() {
   barObs?.disconnect();
   const bar = document.querySelector(".layout aside");
   if (bar && "ResizeObserver" in window) {
-    barObs = new ResizeObserver(() => document.documentElement.style.setProperty("--as-bar", `${bar.offsetHeight}px`));
+    // Keep the floating button just above the summary bar wherever the bar actually sits
+    // (on short pages the sticky bar is not at the bottom of the screen).
+    placeFab = () => document.documentElement.style.setProperty("--as-bar", `${Math.max(0, innerHeight - bar.getBoundingClientRect().top)}px`);
+    barObs = new ResizeObserver(placeFab);
     barObs.observe(bar);
-  }
+    placeFab();
+  } else placeFab = () => {};
   if (focusId) $(focusId)?.focus({ preventScroll: true });
   if (st.order) $("live").textContent = `${t().total}: ${money(st.order.total, st.order.currency)}`;
 }
@@ -687,3 +692,6 @@ async function boot() {
 document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && as.open && isPhone()) closeAssistant(); });
 matchMedia(DESKTOP).addEventListener("change", render);
 boot();
+
+addEventListener("scroll", () => placeFab(), { passive: true });
+addEventListener("resize", () => placeFab());
