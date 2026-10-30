@@ -4,6 +4,7 @@ export const DIR = { he: "rtl", ar: "rtl", en: "ltr" };
 
 export const S = {
   he: {
+    heroPromise: "קייטרינג לאירועים פרטיים — מתכננים יחד, אתם מאשרים", heroCta: "בואו נתכנן אירוע", heroSub: "מבקשים הצעה, אתם מאשרים כל שינוי, והעסק מאשר את ההזמנה.",
     leadHint: "אירועים דורשים הודעה מראש של לפחות {n} ימים.",
     checkDelivery: "בדיקת משלוח", checking: "בודק...",
     quoteFound: "≈ {km} ק״מ · משלוח בכ-{fee} (הערכה, CaterKing מאשרת את הסכום)",
@@ -55,6 +56,7 @@ export const S = {
     asTooLarge: "ההודעה ארוכה מדי. קצרו אותה ונסו שוב.",
   },
   ar: {
+    heroPromise: "تموين للمناسبات الخاصة — نخطّط معًا، وأنت توافق", heroCta: "لنخطّط مناسبة", heroSub: "تطلب عرض سعر، وتوافق على كل تغيير، والمطعم يؤكد الطلب.",
     leadHint: "تتطلب المناسبات إشعارًا مسبقًا لا يقل عن {n} أيام.",
     checkDelivery: "فحص التوصيل", checking: "جارٍ الفحص...",
     quoteFound: "≈ {km} كم · التوصيل بنحو {fee} (تقدير، وتؤكده CaterKing)",
@@ -106,6 +108,7 @@ export const S = {
     asTooLarge: "الرسالة طويلة جدًا. اختصرها وحاول مجددًا.",
   },
   en: {
+    heroPromise: "Catering for private events — we plan it together, you approve", heroCta: "Let's plan an event", heroSub: "You request a quote, approve every change, and the business confirms the order.",
     leadHint: "Events need at least {n} days' notice",
     checkDelivery: "Check delivery", checking: "Checking...",
     quoteFound: "≈ {km} km · delivery about {fee} (estimate — CaterKing confirms it)",
