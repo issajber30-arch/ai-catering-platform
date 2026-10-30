@@ -1,6 +1,7 @@
 import datetime as dt
 import uuid
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import text
@@ -81,7 +82,10 @@ def test_create_returns_token_once(client, order):
     assert order["status"] == "draft" and order["version"] == 1
     assert len(order["access_token"]) >= 40
     assert order["total"] == "0.00" and order["items"] == []
-    assert order["requested_at"].startswith(f"{FUTURE}T10:00")
+    # Compare the instant in the business timezone; the DB may render it in UTC (CI) or local time.
+    requested = dt.datetime.fromisoformat(order["requested_at"].replace("Z", "+00:00"))
+    local = requested.astimezone(ZoneInfo("Asia/Jerusalem"))
+    assert (local.date(), local.hour, local.minute) == (FUTURE, 10, 0)
     again = client.get(f"/api/orders/{order['id']}", headers=hdr(order))
     assert again.status_code == 200 and "access_token" not in again.json()
     assert again.json()["customer"]["full_name"] == "Dana Levi"
