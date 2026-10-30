@@ -62,7 +62,7 @@ fieldset { border: 1px solid #e6e1d8; border-radius: var(--radius); margin-block
 .badge-approved { border-color: var(--color-success); color: var(--color-success); background: #fff; }
 .badge-pending { background: #fff7e6; border-color: #d9a441; color: #7a4a00; }
 .badge-expired, .badge-failed { color: #78716c; }
-.badge-rejected { border-color: var(--color-danger); color: var(--color-danger); background: #fff; }
+.badge-cancelled, .badge-rejected { border-color: var(--color-danger); color: var(--color-danger); background: #fff; }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin-block: 0 var(--space-3); }
 dt { color: #78716c; }
 dd { margin: 0; overflow-wrap: anywhere; }

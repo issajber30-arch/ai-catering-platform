@@ -192,7 +192,8 @@ def order_out(order: Order, lang: str = "he") -> OrderOut:
         time_slot_id=order.time_slot_id, requested_at=order.requested_at,
         delivery_address=order.delivery_address, delivery_zone_id=order.delivery_zone_id,
         submitted_at=order.submitted_at, decided_at=order.decided_at,
-        decision_note=order.decision_note,
+        decision_note=order.decision_note, cancelled_at=order.cancelled_at,
+        cancel_note=order.cancel_note,
     )  # fmt: skip
 
 
@@ -366,6 +367,22 @@ def decide(db: Session, order_id, status: OrderStatus, note: str | None) -> Orde
         )
     order.status, order.decision_note = status, note
     order.decided_at = dt.datetime.now(dt.UTC)
+    order.version += 1
+    return order_out(_save(db, order))
+
+
+def cancel(db: Session, order_id, note: str) -> OrderOut:
+    order = repo.get_order(db, order_id, lock=True)
+    if order is None:
+        raise _not_found()
+    if order.status not in (OrderStatus.pending_approval, OrderStatus.approved):
+        raise AppError(
+            409,
+            "Only orders awaiting approval or approved can be cancelled",
+            code="invalid_transition",
+        )
+    order.status, order.cancel_note = OrderStatus.cancelled, note
+    order.cancelled_at = dt.datetime.now(dt.UTC)
     order.version += 1
     return order_out(_save(db, order))
 

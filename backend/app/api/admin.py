@@ -35,6 +35,7 @@ from app.schemas.logistics import (
     ZonePatch,
 )
 from app.schemas.orders import (
+    CancelIn,
     DecisionIn,
     OrderOut,
     OrderSummary,
@@ -224,6 +225,11 @@ def approve_order(order_id: uuid.UUID, db: Db, body: DecisionIn | None = None) -
 @router.post("/orders/{order_id}/reject")
 def reject_order(order_id: uuid.UUID, db: Db, body: DecisionIn | None = None) -> OrderOut:
     return order_service.decide(db, order_id, OrderStatus.rejected, (body or DecisionIn()).note)
+
+
+@router.post("/orders/{order_id}/cancel")
+def cancel_order(order_id: uuid.UUID, body: CancelIn, db: Db) -> OrderOut:
+    return order_service.cancel(db, order_id, body.note)
 
 
 @router.get("/quantity-rules")

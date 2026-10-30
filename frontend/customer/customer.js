@@ -423,7 +423,8 @@ function viewStatus() {
   const o = st.order;
   return h("div", { class: "ep-form" },
     h("div", { class: `status ${o.status}`, id: "status" }, h("h2", {}, t().st[o.status] ?? o.status), h("p", {}, t().stDesc[o.status] ?? ""),
-      o.decision_note && h("p", {}, h("strong", {}, `${t().note}: `), o.decision_note)),
+      o.decision_note && h("p", {}, h("strong", {}, `${t().note}: `), o.decision_note),
+      o.cancel_note && h("p", {}, h("strong", {}, `${t().note}: `), o.cancel_note)),
     eventRecap(), summaryCard(false), linkBox(),
     h("button", { type: "button", onclick: () => resetOrder() }, t().newOrder));
 }

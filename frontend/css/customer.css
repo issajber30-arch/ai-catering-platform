@@ -81,7 +81,7 @@
 .status { border-radius: var(--ep-radius); padding: var(--space-4); border: 1px solid var(--ep-border); background: var(--ep-sand); margin-block-end: var(--space-4); }
 .status.pending_approval { background: var(--ep-pending-bg); border-color: var(--ep-pending); color: var(--ep-pending); }
 .status.approved { background: var(--ep-pareve-bg); border-color: var(--ep-pareve); color: var(--ep-pareve); }
-.status.rejected { background: var(--ep-meat-bg); border-color: var(--ep-meat); color: var(--ep-meat); }
+.status.rejected, .status.cancelled { background: var(--ep-meat-bg); border-color: var(--ep-meat); color: var(--ep-meat); }
 .status h2 { color: inherit; }
 .linkbox { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .linkbox input { flex: 1 1 220px; direction: ltr; text-align: start; }
