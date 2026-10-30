@@ -21,9 +21,15 @@ CODES = {
 
 class AppError(Exception):
     def __init__(
-        self, status: int, message: str, details: dict | None = None, code: str | None = None
+        self,
+        status: int,
+        message: str,
+        details: dict | None = None,
+        code: str | None = None,
+        headers: dict | None = None,
     ):
         self.status, self.message, self.details, self.code = status, message, details or {}, code
+        self.headers = headers
 
 
 def _body(
@@ -40,7 +46,7 @@ def _body(
 def install_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError):
-        return _body(exc.status, exc.message, exc.details, code=exc.code)
+        return _body(exc.status, exc.message, exc.details, exc.headers, exc.code)
 
     @app.exception_handler(IntegrityError)
     async def _integrity_error(_: Request, exc: IntegrityError):

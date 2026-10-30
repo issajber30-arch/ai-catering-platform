@@ -30,6 +30,10 @@ class PublicSettingsOut(BaseModel):
     max_km: Decimal
 
 
+class DeliveryQuoteIn(BaseModel):
+    address: Annotated[str, Field(min_length=1, max_length=500)]
+
+
 class DeliveryQuoteOut(BaseModel):
     found: bool
     km: Decimal | None

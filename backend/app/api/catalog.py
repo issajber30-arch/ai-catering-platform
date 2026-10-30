@@ -5,12 +5,13 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query
 
 from app.core.db import Db
+from app.core.ratelimit import limit
 from app.models.catalog import KashrutClass
 from app.repositories import catalog as repo
 from app.repositories import logistics as lrepo
 from app.schemas.catalog import CategoryOut, DishDetailOut, DishOut
 from app.schemas.logistics import AvailabilityOut, PublicZoneOut
-from app.schemas.settings import DeliveryQuoteOut, PublicSettingsOut
+from app.schemas.settings import DeliveryQuoteIn, DeliveryQuoteOut, PublicSettingsOut
 from app.services import availability, geo
 from app.services import catalog as service
 from app.services import settings as settings_service
@@ -67,14 +68,14 @@ def public_settings(db: Db) -> PublicSettingsOut:
     )
 
 
-@router.get("/delivery-quote")
+@router.post("/delivery-quote", dependencies=[Depends(limit("quote", 30, 600))])
 def delivery_quote(
+    body: DeliveryQuoteIn,
     db: Db,
-    address: Annotated[str, Query(min_length=1, max_length=500)],
     geocode: Annotated[geo.Geocoder, Depends(geo.get_geocoder)],
 ) -> DeliveryQuoteOut:
     s = settings_service.get(db)
-    q = geo.quote(db, geocode, address, s)
+    q = geo.quote(db, geocode, body.address, s)
     return DeliveryQuoteOut(
         found=q.found, km=q.km, fee=q.fee, max_km=s.delivery_max_km, too_far=q.too_far
     )
