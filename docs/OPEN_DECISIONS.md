@@ -9,7 +9,6 @@ Format: **Question** · *Why it matters* · **Blocks**
 | 2 | Payment & deposit | Is any deposit or payment collected in-app? | Payments are out of scope unless approved | Nothing in MVP unless approved |
 | 6 | Quote modification & negotiation | Can the owner edit or counter-propose a quote, or only approve/reject? | Adds states and UI | Out of MVP until decided |
 | 7 | Cancellation & revision | Can a customer edit after submission or approval? Cancellation deadlines? (Owner-only cancel is decided, see the log.) | Adds states and rules | Out of MVP until decided |
-| 9 | Kashrut certification | Which certification(s)? Shown per dish or business-wide? Mixing meat & dairy dishes in one order allowed? | Affects data model and validation | Phase 2 dish fields, Phase 3 conflict checks |
 | 10 | Disposable serving equipment | Are utensils/disposables orderable? Priced how? | Could be catalog items or separate | Out of MVP until decided |
 | 11 | Alcohol | Offered at all? Age verification? | Legal implications | Out of MVP until decided |
 
@@ -36,3 +35,5 @@ When a decision is made, record it here and move the row out of the table above.
 | 2026-10-29 | 18 | Weight unit: price per kg | Owner |
 | 2026-10-29 | 20 | Business name: CaterKing (logo, colors: Stitch "Haute Epicure" style; logo still open) | Owner |
 | 2026-10-30 | — | Hosting: Render (web, from `render.yaml`) + Supabase (Postgres, Auth, Storage) instead of Railway. Render was already connected to GitHub; Render's free Postgres expires after 30 days, and Supabase is needed for Auth/Storage anyway | Owner ("use what's better and more efficient") |
+| 2026-10-30 | 9 | Kashrut: CaterKing is **not certified**; the site shows only meat/dairy/pareve per dish and makes no certification claim | Owner |
+| 2026-10-30 | 7 | Customers may edit a submitted quote until a deadline before the event (number of days still to confirm); not built yet | Owner |
