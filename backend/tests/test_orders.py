@@ -671,3 +671,43 @@ def test_geocoder_lock_timeout_is_a_failure_not_a_hang(monkeypatch):
     monkeypatch.setattr(geo, "_lock", SimpleNamespace(acquire=lambda timeout: False))
     with pytest.raises(geo.GeocodeError):
         geo.nominatim("anything")
+
+
+def test_geocoder_falls_back_to_second_provider_on_error(monkeypatch):
+    import httpx
+
+    from app.services import geo
+
+    def refused(_address):
+        raise httpx.HTTPStatusError("403", request=None, response=None)
+
+    calls = []
+    monkeypatch.setattr(geo, "PROVIDERS", (
+        ("first", refused),
+        ("second", lambda a: calls.append(a) or (31.78, 35.21)),
+    ))  # fmt: skip
+    assert geo.nominatim("Jaffa St 97") == (31.78, 35.21)
+    assert calls == ["Jaffa St 97"]
+
+
+def test_geocoder_not_found_does_not_fall_back(monkeypatch):
+    from app.services import geo
+
+    second = []
+    monkeypatch.setattr(geo, "PROVIDERS", (
+        ("first", lambda a: None),
+        ("second", lambda a: second.append(a) or (1.0, 1.0)),
+    ))  # fmt: skip
+    assert geo.nominatim("nowhere") is None
+    assert second == []
+
+
+def test_geocoder_all_providers_failing_raises(monkeypatch):
+    from app.services import geo
+
+    def boom(_address):
+        raise ValueError("bad json")
+
+    monkeypatch.setattr(geo, "PROVIDERS", (("first", boom), ("second", boom)))
+    with pytest.raises(geo.GeocodeError):
+        geo.nominatim("x")
