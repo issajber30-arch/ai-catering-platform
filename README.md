@@ -11,7 +11,7 @@ Ordering and management web app for a **single catering business**. Customers pl
 | Backend | Python 3.12+, FastAPI, Pydantic, SQLAlchemy 2 |
 | Frontend | Plain HTML, CSS, JavaScript (served by FastAPI) |
 | Data | Supabase (Postgres, Storage, Auth when approved) |
-| Hosting | Railway (Dockerfile build) |
+| Hosting | Render (Dockerfile build, `render.yaml` blueprint) + Supabase (Postgres, Auth, Storage) |
 | Quality | pytest, Ruff, GitHub Actions |
 
 ## Repository layout
@@ -22,8 +22,8 @@ frontend/       customer/ and admin/ pages, css/, js/, assets/
 database/       migrations/ (SQL, Supabase CLI format)
 docs/           PRD, architecture, schema, API, AI agent, UX/UI, ADRs, open decisions
 .github/        CI workflow
-Dockerfile      Production image used by Railway
-railway.json    Railway build/deploy config (healthcheck /health)
+Dockerfile      Image used by Render (runs migrations, then uvicorn)
+render.yaml     Render blueprint for the dev site (healthcheck /health)
 .env.example    Environment variable template
 ```
 
@@ -93,7 +93,7 @@ The Supabase Python client is not used: JWKS, Auth REST and Storage REST are cal
 
 ## Branches and environments
 
-| Branch | Purpose | Railway env | Supabase project |
+| Branch | Purpose | Render service | Supabase project |
 |---|---|---|---|
 | `main` | Production (default branch) | `production` | prod project |
 | `dev` | Integration | `development` | dev project |
@@ -101,11 +101,11 @@ The Supabase Python client is not used: JWKS, Auth REST and Storage REST are cal
 - Feature work → PR into `dev` (CI must pass).
 - Release → PR `dev` → `main`.
 - Production deploys are manual and need explicit approval.
-- Each Railway environment holds its own variables from `.env.example`. **Never commit secrets.** The service-role key stays server-side.
+- Each Render service holds its own variables from `.env.example`. **Never commit secrets.** The service-role key stays server-side.
 
-## Railway / Supabase status
+## Deployment status
 
-Configuration templates only (`railway.json`, `Dockerfile`, `.env.example`). No Railway project or Supabase project is connected yet. That is planned for Phase 6.
+Hosting is **Render + Supabase** (decision log, 2026-10-30). `render.yaml` defines the dev site (`caterking-dev`, branch `dev`, free plan); it applies new SQL migrations on start (`python -m app.migrate`). Step-by-step setup: `docs/DEPLOY.md`. Production comes later, after explicit approval.
 
 ## Documentation
 
