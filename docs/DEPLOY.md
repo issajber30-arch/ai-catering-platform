@@ -43,7 +43,7 @@ The service deploys from the **`dev`** branch, so merged PRs go live automatical
 Once the site is up, add your menu, the kitchen address in the admin Settings tab, and serving rules. They're needed for real quotes.
 
 ## Production
-Production is a second Render service, **`caterking`**, defined in `render.yaml`. It deploys from **`main`** on the Starter plan (always on, about $7/month). It has its **own** Supabase project, `caterking-prod` (`vowkkljvaymxzhkllvxl`, Ireland), so real orders never mix with test data.
+Production is a second Render service, **`caterking`**, defined in `render.yaml`. It deploys from **`main`** on the free plan for now (sleeps when idle; upgrade to Starter, about $7/month, for always-on). It has its **own** Supabase project, `caterking-prod` (`vowkkljvaymxzhkllvxl`, Ireland), so real orders never mix with test data.
 
 1. **Release:** merge a PR from `dev` into `main`. Only merge what you've already checked on the dev site.
 2. **Render:** open the Blueprint and click **Sync**. Render proposes the new `caterking` service and asks for its secrets:

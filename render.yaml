@@ -32,7 +32,7 @@ services:
   - type: web
     name: caterking
     runtime: docker
-    plan: starter # always on, ~$7/month (owner approved launch on 2026-10-30)
+    plan: free # owner chose free for launch (2026-10-31); upgrade to starter for always-on
     branch: main
     autoDeploy: true
     dockerfilePath: ./Dockerfile
