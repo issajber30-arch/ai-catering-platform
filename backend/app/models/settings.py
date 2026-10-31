@@ -13,6 +13,7 @@ class BusinessSettings(Base):
     __tablename__ = "business_settings"
     id: Mapped[bool] = mapped_column(primary_key=True, default=True)
     lead_time_days: Mapped[int]
+    edit_cutoff_hours: Mapped[int]
     min_food_total: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     delivery_base_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     delivery_per_km: Mapped[Decimal] = mapped_column(Numeric(10, 2))

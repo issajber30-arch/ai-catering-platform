@@ -643,7 +643,7 @@ def test_delivery_quote_validation(client):
 
 def test_public_settings(client):
     assert client.get("/api/public-settings").json() == {
-        "lead_time_days": 7, "min_food_total": "0.00", "max_km": "40.00",
+        "lead_time_days": 7, "edit_cutoff_hours": 4, "min_food_total": "0.00", "max_km": "40.00",
     }  # fmt: skip
 
 
@@ -784,3 +784,94 @@ def test_client_ip_behind_render_proxies():
                           "x-forwarded-for": "81.218.40.7"})) == "77.137.5.4"  # fmt: skip
     # Garbage in the edge header is ignored; local development falls back to the socket
     assert client_ip(req({"cf-connecting-ip": "not-an-ip"}, host="127.0.0.1")) == "127.0.0.1"
+
+
+# ---- customer edit window (reopen)
+def reopen(client, order, version):
+    return client.post(
+        f"/api/orders/{order['id']}/reopen", json={"version": version}, headers=hdr(order)
+    )
+
+
+def submitted(client, make_dish, body):
+    o = put_item(client, new(client, body), make_dish()).json()
+    return submit(client, o, o["version"]).json()
+
+
+def test_reopen_from_pending_and_approved(client, admin, make_dish, body):
+    for approve in (False, True):
+        o = submitted(client, make_dish, body)
+        first = o["first_submitted_at"]
+        assert first and first == o["submitted_at"]
+        if approve:
+            admin.post(f"/api/admin/orders/{o['id']}/approve", json={"note": "ok"})
+            o = client.get(f"/api/orders/{o['id']}", headers=hdr(o)).json()
+        r = reopen(client, o, o["version"])
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["status"] == "draft" and d["version"] == o["version"] + 1
+        assert d["submitted_at"] is None and d["decided_at"] is None and d["decision_note"] is None
+        assert d["first_submitted_at"] == first and d["reopened_at"]
+        assert admin.get(f"/api/admin/orders/{o['id']}").json()["reopened_at"]
+        again = submit(client, d, d["version"])  # same date, 10 days out
+        assert again.status_code == 200 and again.json()["status"] == "pending_approval"
+        assert again.json()["first_submitted_at"] == first
+
+
+def test_reopen_refused(client, admin, make_dish, body, db):
+    draft = new(client, body)
+    r = reopen(client, draft, draft["version"])
+    assert r.status_code == 409 and error_code(r) == "invalid_transition"
+    rejected, cancelled, late = (submitted(client, make_dish, body) for _ in range(3))
+    admin.post(f"/api/admin/orders/{rejected['id']}/reject")
+    admin.post(f"/api/admin/orders/{cancelled['id']}/cancel", json={"note": "x"})
+    for o in (rejected, cancelled):
+        assert reopen(client, o, o["version"] + 1).status_code == 409
+
+    def move(hours):
+        t = dt.datetime.now(dt.UTC) + dt.timedelta(hours=hours)
+        sql = text("UPDATE orders SET requested_at = :t WHERE id = :i")
+        db.execute(sql, {"t": t, "i": late["id"]})
+        db.commit()
+
+    move(3)
+    r = reopen(client, late, late["version"])
+    assert r.status_code == 409 and error_code(r) == "invalid_transition"
+    assert r.json()["error"]["message"] == "Changes are closed 4 hours before the event"
+    move(5)
+    assert reopen(client, late, late["version"]).status_code == 200
+
+
+def test_reopen_version_conflict_and_token(client, make_dish, body):
+    o = submitted(client, make_dish, body)
+    stale = reopen(client, o, o["version"] + 5)
+    assert stale.status_code == 409 and error_code(stale) == "order_version_conflict"
+    assert client.post(f"/api/orders/{o['id']}/reopen", json={"version": 2}).status_code == 404
+
+
+def test_reopen_date_rules(client, make_dish, body, db):
+    o = submitted(client, make_dish, body)
+    near = TODAY + dt.timedelta(days=3)  # the event is now 3 days out
+    db.execute(text("UPDATE events SET event_date = :d"), {"d": near})
+    at = dt.datetime.combine(near, dt.time(10), tzinfo=ZoneInfo("Asia/Jerusalem"))
+    db.execute(text("UPDATE orders SET requested_at = :t"), {"t": at})
+    db.commit()
+    d = reopen(client, o, o["version"]).json()
+    assert submit(client, d, d["version"]).status_code == 200  # original date stays editable
+    o = client.get(f"/api/orders/{o['id']}", headers=hdr(o)).json()
+    d = reopen(client, o, o["version"]).json()
+    event = {**body["event"], "event_date": str(near + dt.timedelta(days=1))}
+    moved = client.patch(
+        f"/api/orders/{o['id']}", json={"version": d["version"], "event": event}, headers=hdr(o)
+    )
+    assert moved.status_code == 422 and "notice" in moved.json()["error"]["message"]
+    soon = body | {"event": body["event"] | {"event_date": str(near)}}
+    assert client.post("/api/orders", json=soon).status_code == 422  # new orders: full lead time
+
+
+def test_edit_cutoff_setting(admin, client):
+    assert admin.get("/api/admin/settings").json()["edit_cutoff_hours"] == 4
+    assert client.get("/api/public-settings").json()["edit_cutoff_hours"] == 4
+    assert set_settings(admin, edit_cutoff_hours=24).status_code == 200
+    for bad in (-1, 169, "x"):
+        assert set_settings(admin, edit_cutoff_hours=bad).status_code == 422

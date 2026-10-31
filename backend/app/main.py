@@ -48,6 +48,10 @@ SECURITY_HEADERS = {
 async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers.update(SECURITY_HEADERS)
+    if not request.url.path.startswith("/api/"):
+        # Pages, scripts and styles revalidate on every visit, so a deploy reaches returning
+        # customers at once (unchanged files still come back as a cheap 304).
+        response.headers["Cache-Control"] = "no-cache"
     return response
 
 

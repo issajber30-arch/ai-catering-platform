@@ -4,6 +4,7 @@ export const DIR = { he: "rtl", ar: "rtl", en: "ltr" };
 
 export const S = {
   he: {
+    heroPromise: "קייטרינג לאירועים פרטיים — מתכננים יחד, אתם מאשרים", heroCta: "בואו נתכנן אירוע", heroSub: "מבקשים הצעה, אתם מאשרים כל שינוי, והעסק מאשר את ההזמנה.",
     leadHint: "אירועים דורשים הודעה מראש של לפחות {n} ימים.",
     checkDelivery: "בדיקת משלוח", checking: "בודק...",
     quoteFound: "≈ {km} ק״מ · משלוח בכ-{fee} (הערכה, CaterKing מאשרת את הסכום)",
@@ -41,6 +42,7 @@ export const S = {
     st: { draft: "טיוטה: הבקשה טרם נשלחה", pending_approval: "ממתין לאישור העסק", approved: "אושר על ידי העסק", rejected: "נדחה על ידי העסק", cancelled: "בוטל על ידי CaterKing" },
     stDesc: { draft: "ניתן להמשיך לערוך את ההזמנה.", pending_approval: "הבקשה נשלחה וממתינה לאישור. זו עדיין לא הזמנה מאושרת.", approved: "העסק אישר את הבקשה.", rejected: "העסק לא יכול לאשר את הבקשה.", cancelled: "ההזמנה בוטלה. לשאלות אפשר לפנות ל-CaterKing." },
     note: "הערת העסק", link: "הקישור הפרטי שלכם להזמנה", saveLink: "שמרו את הקישור הזה. רק באמצעותו אפשר לחזור להזמנה.", copy: "העתקת קישור", copied: "הקישור הועתק",
+    change: "שינוי ההזמנה", changeNote: "ההזמנה תחזור ל-CaterKing לאישור מחדש", changeClosed: "השינויים נסגרו, יש לפנות ל-CaterKing",
     newOrder: "התחלת הזמנה חדשה",
     conflict: "ההזמנה עודכנה במקום אחר. טענו אותה מחדש, בדקו ונסו שוב.", locked: "ההזמנה כבר לא ניתנת לשינוי.",
     notFound: "ההזמנה לא נמצאה. מתחילים הזמנה חדשה.", error: "משהו השתבש. נסו שוב.",
@@ -55,6 +57,7 @@ export const S = {
     asTooLarge: "ההודעה ארוכה מדי. קצרו אותה ונסו שוב.",
   },
   ar: {
+    heroPromise: "تموين للمناسبات الخاصة — نخطّط معًا، وأنت توافق", heroCta: "لنخطّط مناسبة", heroSub: "تطلب عرض سعر، وتوافق على كل تغيير، والمطعم يؤكد الطلب.",
     leadHint: "تتطلب المناسبات إشعارًا مسبقًا لا يقل عن {n} أيام.",
     checkDelivery: "فحص التوصيل", checking: "جارٍ الفحص...",
     quoteFound: "≈ {km} كم · التوصيل بنحو {fee} (تقدير، وتؤكده CaterKing)",
@@ -92,6 +95,7 @@ export const S = {
     st: { draft: "مسودة: لم يُرسل الطلب بعد", pending_approval: "بانتظار موافقة المطعم", approved: "وافق عليه المطعم", rejected: "رفضه المطعم", cancelled: "ألغاه CaterKing" },
     stDesc: { draft: "يمكنك متابعة تعديل الطلب.", pending_approval: "تم إرسال الطلب وهو بانتظار الموافقة. هذا ليس حجزًا مؤكدًا بعد.", approved: "وافق المطعم على الطلب.", rejected: "تعذّر على المطعم قبول الطلب.", cancelled: "تم إلغاء الطلب. للاستفسار يمكنك التواصل مع CaterKing." },
     note: "ملاحظة المطعم", link: "رابطك الخاص للطلب", saveLink: "احفظ هذا الرابط. هو الطريقة الوحيدة للعودة إلى طلبك.", copy: "نسخ الرابط", copied: "تم نسخ الرابط",
+    change: "تعديل الطلب", changeNote: "سيعود طلبك إلى CaterKing للموافقة", changeClosed: "انتهت فترة التعديل، يرجى التواصل مع CaterKing",
     newOrder: "بدء طلب جديد",
     conflict: "تم تعديل الطلب من مكان آخر. أعدنا تحميله، راجعه وحاول مجددًا.", locked: "لم يعد بالإمكان تعديل الطلب.",
     notFound: "الطلب غير موجود. نبدأ طلبًا جديدًا.", error: "حدث خطأ. حاول مرة أخرى.",
@@ -106,6 +110,7 @@ export const S = {
     asTooLarge: "الرسالة طويلة جدًا. اختصرها وحاول مجددًا.",
   },
   en: {
+    heroPromise: "Catering for private events — we plan it together, you approve", heroCta: "Let's plan an event", heroSub: "You request a quote, approve every change, and the business confirms the order.",
     leadHint: "Events need at least {n} days' notice",
     checkDelivery: "Check delivery", checking: "Checking...",
     quoteFound: "≈ {km} km · delivery about {fee} (estimate — CaterKing confirms it)",
@@ -143,6 +148,7 @@ export const S = {
     st: { draft: "Draft: request not sent yet", pending_approval: "Awaiting business approval", approved: "Approved by the business", rejected: "Rejected by the business", cancelled: "Cancelled by CaterKing" },
     stDesc: { draft: "You can keep editing your order.", pending_approval: "Your request was sent and is waiting for approval. This is not a confirmed order yet.", approved: "The business approved your request.", rejected: "The business could not accept your request.", cancelled: "This order was cancelled. Contact CaterKing with any questions." },
     note: "Business note", link: "Your private order link", saveLink: "Save this link. It is the only way back to your order.", copy: "Copy link", copied: "Link copied",
+    change: "Change my order", changeNote: "Your order will go back to CaterKing for approval", changeClosed: "Changes are closed — contact CaterKing",
     newOrder: "Start a new order",
     conflict: "The order was changed elsewhere. We reloaded it; please check and try again.", locked: "This order can no longer be changed.",
     notFound: "Order not found. Starting a new one.", error: "Something went wrong. Please try again.",
