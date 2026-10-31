@@ -44,7 +44,8 @@ Phase 3.1 rules (server-enforced): event date ≥ today + `lead_time_days` (422 
 | GET | `/api/orders/{id}/recommendations` | Quantity recommendations (rules **[OPEN #3]**) |
 
 Rate limits (per client IP, in memory; 429 `rate_limited` + `Retry-After`): `POST /api/orders` 10/hour, `POST /api/delivery-quote` 30/10 min, `POST /api/orders/{id}/chat` 60/hour.
-| POST | `/api/orders/{id}/submit` | `draft → pending_approval`; freezes snapshot |
+| POST | `/api/orders/{id}/submit` | `draft → pending_approval`; freezes snapshot; sets `first_submitted_at` if empty |
+| POST | `/api/orders/{id}/reopen` `{version}` | `pending_approval`/`approved → draft` while now < `requested_at` − `edit_cutoff_hours` (else 409 `invalid_transition` "Changes are closed N hours before the event"; stale version 409 `order_version_conflict`). Clears totals and item snapshots, sets `reopened_at`. A reopened order on its original date only needs `edit_cutoff_hours` notice on re-submit; moving the date needs the full lead time |
 
 Every mutation returns the full updated order (new `version`). A stale `version` → `409 order_version_conflict`.
 
@@ -103,6 +104,7 @@ Proposal shape:
 | draft → pending_approval | `POST /api/orders/{id}/submit` | Order's customer |
 | pending_approval → approved | `POST /api/admin/orders/{id}/approve` | Owner |
 | pending_approval → rejected | `POST /api/admin/orders/{id}/reject` | Owner |
+| pending_approval or approved → draft | `POST /api/orders/{id}/reopen` | Order's customer |
 | pending_approval or approved → cancelled | `POST /api/admin/orders/{id}/cancel` | Owner |
 
 Any other transition → `409 invalid_transition`. The AI agent has no tool that triggers these.

@@ -10,6 +10,7 @@ Money = Annotated[Decimal, Field(ge=0, max_digits=10, decimal_places=2)]
 
 class SettingsIn(BaseModel):
     lead_time_days: Annotated[int, Field(ge=0, le=365)]
+    edit_cutoff_hours: Annotated[int, Field(ge=0, le=168)]
     min_food_total: Money
     delivery_base_fee: Money
     delivery_per_km: Money
@@ -26,6 +27,7 @@ class SettingsOut(Out, SettingsIn):
 
 class PublicSettingsOut(BaseModel):
     lead_time_days: int
+    edit_cutoff_hours: int
     min_food_total: Decimal
     max_km: Decimal
 

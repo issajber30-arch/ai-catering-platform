@@ -12,7 +12,7 @@ const app = $("app");
 
 const st = {
   lang: "he", order: null, cred: null, step: "event", busy: false,
-  types: [], settings: { lead_time_days: 7, min_food_total: "500.00", max_km: "40.00" }, quote: null, slots: [], blocked: [], cats: [], dishes: [], cat: "all",
+  types: [], settings: { lead_time_days: 7, edit_cutoff_hours: 4, min_food_total: "500.00", max_km: "40.00" }, quote: null, slots: [], blocked: [], cats: [], dishes: [], cat: "all",
   recs: {}, details: {}, open: new Set(), imgBase: null, errs: {}, form: null, started: false,
 };
 const t = () => S[st.lang];
@@ -480,8 +480,20 @@ function viewStatus() {
     h("div", { class: `status ${o.status}`, id: "status" }, h("h2", {}, t().st[o.status] ?? o.status), h("p", {}, t().stDesc[o.status] ?? ""),
       o.decision_note && h("p", {}, h("strong", {}, `${t().note}: `), o.decision_note),
       o.cancel_note && h("p", {}, h("strong", {}, `${t().note}: `), o.cancel_note)),
-    eventRecap(), summaryCard(false), linkBox(),
+    eventRecap(), summaryCard(false), editBox(o), linkBox(),
     h("button", { type: "button", onclick: () => resetOrder() }, t().newOrder));
+}
+// Customers may change a submitted order until the cutoff; it then returns to the owner for approval.
+function editBox(o) {
+  if (o.status !== "pending_approval" && o.status !== "approved") return null;
+  const open = Date.now() < new Date(o.requested_at).getTime() - st.settings.edit_cutoff_hours * 3600e3;
+  if (!open) return h("p", { class: "hint" }, t().changeClosed);
+  return h("div", {}, h("p", { class: "hint" }, t().changeNote),
+    h("button", { type: "button", onclick: () => guard(async () => {
+      st.order = await orderApi("/reopen", { method: "POST", body: JSON.stringify({ version: o.version }) });
+      await loadRecs();
+      st.step = "menu";
+    }) }, t().change));
 }
 
 
