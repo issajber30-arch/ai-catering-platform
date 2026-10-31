@@ -96,6 +96,8 @@ A missing row = **unknown**.
 | delivery_zone_id | uuid FK null | |
 | subtotal, delivery_fee, total | numeric(10,2) null | Computed by backend; frozen at submission |
 | submitted_at, decided_at | timestamptz null | |
+| first_submitted_at | timestamptz null | First submit; kept when the customer reopens the order |
+| reopened_at | timestamptz null | Last time the customer took a submitted order back to draft |
 | decision_note | text null | Owner's note on approve/reject |
 | cancelled_at | timestamptz null | Set when the owner cancels |
 | cancel_note | text null | Required reason (1-1000 chars), shown to the customer |
@@ -154,4 +156,4 @@ Proposals may only execute while order is `draft`.
 
 Phase 3 also adds `orders.access_token_hash` (sha256 of the guest token), `orders.time_slot_id`, `orders.currency`; `customers` has no `auth_user_id` yet (guest checkout, #1). `requested_at` is stored in `BUSINESS_TIMEZONE` (default Asia/Jerusalem).
 
-Phase 3.1: `business_settings` (single row, `id boolean PK CHECK (id)`): lead time, food minimum, delivery base/per-km/max-km, kitchen address + lat/lon. `orders` adds `delivery_km`, `delivery_lat`, `delivery_lon`, `delivery_fee_estimated`; the zone requirement is replaced by `orders_delivery_needs_address`. `geocode_cache` (`address_norm` PK, lat, lon, found) caches Nominatim answers, including not-found; lookup failures are never cached.
+Phase 3.1: `business_settings` (single row, `id boolean PK CHECK (id)`): lead time, edit cutoff hours (`edit_cutoff_hours`, default 4, 0-168), food minimum, delivery base/per-km/max-km, kitchen address + lat/lon. `orders` adds `delivery_km`, `delivery_lat`, `delivery_lon`, `delivery_fee_estimated`; the zone requirement is replaced by `orders_delivery_needs_address`. `geocode_cache` (`address_norm` PK, lat, lon, found) caches Nominatim answers, including not-found; lookup failures are never cached.

@@ -1,7 +1,7 @@
 // Customer ordering UI. All DOM is built with h() (createElement/textContent); server data is never
 // parsed as HTML. Totals shown are always the server's OrderOut values, never computed here.
 import { api } from "/js/api.js";
-import { h } from "/js/dom.js";
+import { h, svg } from "/js/dom.js";
 import { S, DIR, LANGS } from "./i18n.js";
 
 const STORE = "catering_order";
@@ -12,10 +12,13 @@ const app = $("app");
 
 const st = {
   lang: "he", order: null, cred: null, step: "event", busy: false,
-  types: [], settings: { lead_time_days: 7, min_food_total: "500.00", max_km: "40.00" }, quote: null, slots: [], blocked: [], cats: [], dishes: [], cat: "all",
-  recs: {}, details: {}, open: new Set(), imgBase: null, errs: {}, form: null,
+  types: [], settings: { lead_time_days: 7, edit_cutoff_hours: 4, min_food_total: "500.00", max_km: "40.00" }, quote: null, slots: [], blocked: [], cats: [], dishes: [], cat: "all",
+  recs: {}, details: {}, open: new Set(), imgBase: null, errs: {}, form: null, started: false,
 };
 const t = () => S[st.lang];
+// Motion: WAAPI, <=250ms, ease-out; skipped entirely under prefers-reduced-motion.
+const EASE = "cubic-bezier(0.23, 1, 0.32, 1)";
+const motionOK = () => !matchMedia("(prefers-reduced-motion: reduce)").matches;
 const fmt = (text, vars) => text.replace(/\{(\w+)\}/g, (_, k) => vars[k]);
 
 // ---- storage (may throw in private windows)
@@ -90,7 +93,7 @@ function setCred(cred) {
 function resetOrder(msg = "") {
   store.clear();
   history.replaceState(null, "", location.pathname + location.search);
-  Object.assign(st, { order: null, cred: null, step: "event", form: null, recs: {}, errs: {} });
+  Object.assign(st, { order: null, cred: null, step: "event", form: null, recs: {}, errs: {}, started: false });
   say(msg, msg ? "error" : "ok");
   render();
 }
@@ -198,6 +201,43 @@ async function onDate(f, value) {
   render();
 }
 
+// ---- welcome hero (only while no order is loaded)
+const arrow = () => svg("svg", { viewBox: "0 0 24 24", width: 20, height: 20, fill: "none", stroke: "currentColor", "stroke-width": 1.5, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false" },
+  svg("path", { d: "M5 12h14M13 6l6 6-6 6" }));
+function viewHero() {
+  return h("section", { class: "hero", "aria-labelledby": "hero-h" },
+    h("p", { class: "hero-mark", "aria-hidden": "true" }, "CaterKing"),
+    h("div", { class: "rule", "aria-hidden": "true" }),
+    h("h2", { id: "hero-h", class: "hero-promise" }, t().heroPromise),
+    h("p", { class: "hero-sub" }, t().heroSub),
+    h("button", { type: "button", id: "hero-cta", class: "primary hero-cta",
+      onclick: () => { st.started = true; render(); document.querySelector("#f-type-group [aria-checked='true']")?.focus(); } },
+    h("span", {}, t().heroCta), arrow()));
+}
+
+// ---- event type tiles (radiogroup; line icons built with createElementNS)
+const ICONS = {
+  birthday: ["M4 21h16v-7H4z", "M4 17.5c2 1.5 4-1.5 8 0s6 1 8 0", "M12 14V9", "M12 4.5c.9.9.9 1.8 0 2.7-.9-.9-.9-1.8 0-2.7z"],
+  family_celebration: ["M4 11l8-7 8 7", "M6 10v10h12V10", "M10 20v-5h4v5"],
+  bar_bat_mitzvah: ["M12 6c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13C17 4 14 4.5 12 6z", "M12 6v13"],
+  shabbat: ["M7 20v-8h3v8z", "M14 20v-8h3v8z", "M8.5 9c.8-.8.8-1.6 0-2.5-.8.9-.8 1.7 0 2.5z", "M15.5 9c.8-.8.8-1.6 0-2.5-.8.9-.8 1.7 0 2.5z", "M5 20h14"],
+  other: ["M12 3c.6 4.5 1.5 5.4 6 6-4.5.6-5.4 1.5-6 6-.6-4.5-1.5-5.4-6-6 4.5-.6 5.4-1.5 6-6z", "M18 16v4M16 18h4"],
+};
+const eventIcon = (k) => svg("svg", { class: "tile-icon", viewBox: "0 0 24 24", width: 28, height: 28, fill: "none", stroke: "currentColor", "stroke-width": 1.5, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", focusable: "false" },
+  (ICONS[k] ?? ICONS.other).map((d) => svg("path", { d })));
+function eventTiles(f) {
+  const rtl = DIR[st.lang] === "rtl";
+  const step = { ArrowDown: 1, ArrowUp: -1, ArrowRight: rtl ? -1 : 1, ArrowLeft: rtl ? 1 : -1 };
+  const pick = (k) => { f.type = k; render(); $(`f-type-${k}`)?.focus(); };
+  const n = st.types.length;
+  return h("div", { class: "field" }, h("div", { class: "lbl", id: "f-type-l" }, t().eventType),
+    h("div", { class: "tiles", id: "f-type-group", role: "radiogroup", "aria-labelledby": "f-type-l" },
+      st.types.map((k, i) => h("button", { type: "button", role: "radio", class: "tile", id: `f-type-${k}`, "aria-checked": String(k === f.type), tabindex: k === f.type ? "0" : "-1",
+        onclick: () => pick(k),
+        onkeydown: (ev) => { const d = step[ev.key]; if (d) { ev.preventDefault(); pick(st.types[(i + d + n) % n]); } } },
+      eventIcon(k), h("span", { class: "tile-no", "aria-hidden": "true" }, String(i + 1).padStart(2, "0")), h("span", { class: "tile-name" }, t().event_types[k] ?? k)))));
+}
+
 function viewEvent() {
   const f = (st.form ??= defaultForm());
   const e = st.errs;
@@ -210,8 +250,7 @@ function viewEvent() {
 
   const form = h("form", { class: "ep-card ep-form", novalidate: true, onsubmit: (ev) => { ev.preventDefault(); guard(() => submitEvent(f)); } },
     h("h2", {}, t().step1),
-    field("f-type", t().eventType, h("select", { id: "f-type", onchange: (ev) => (f.type = ev.target.value) },
-      st.types.map((k) => h("option", { value: k, selected: k === f.type }, t().event_types[k] ?? k)))),
+    eventTiles(f),
     field("f-date", t().date, h("input", { id: "f-date", type: "date", min: minDate(), value: f.date, required: true, onchange: (ev) => onDate(f, ev.target.value) }), { err: e.date, hint: leadMsg() }),
     field("f-fulfillment-group", t().fulfillment, h("div", { class: "pills", role: "group", id: "f-fulfillment-group", "aria-label": t().fulfillment },
       ["pickup", "delivery"].map((k) => h("button", { type: "button", id: `f-ful-${k}`, "aria-pressed": String(f.fulfillment === k),
@@ -318,6 +357,7 @@ function allergenPanel(d) {
     h("p", { class: "hint" }, t().disclaimer));
 }
 
+const initial = (name) => Array.from((name ?? "").trim())[0] ?? "";
 function dishCard(d) {
   const item = st.order.items.find((i) => i.dish_id === d.id);
   const qty = item ? Number(item.quantity) : 0;
@@ -325,12 +365,17 @@ function dishCard(d) {
   const first = Math.max(Number(d.min_quantity ?? 0), step);
   const rec = st.recs[d.id];
   const open = st.open.has(d.id);
+  const name = d.name || d.name_he;
   return h("li", { class: "dish" },
-    d.image_path && st.imgBase && h("img", { alt: "", loading: "lazy", src: `${st.imgBase}/${encodeURIComponent(d.image_path)}` }),
+    d.image_path && st.imgBase
+      ? h("img", { class: "dish-media", alt: "", loading: "lazy", src: `${st.imgBase}/${encodeURIComponent(d.image_path)}` })
+      : h("div", { class: "dish-media mono", "aria-hidden": "true" }, h("span", {}, initial(name))),
     h("div", { class: "dish-body" },
-      h("h3", {}, d.name || d.name_he),
-      d.description && h("p", {}, d.description),
-      h("div", { class: "price" }, `${money(d.unit_price, d.currency)} / ${unitText(d.pricing_unit, d.unit_label)}`),
+      h("div", { class: "dish-head" },
+        h("h4", { class: "dish-name" }, name), h("span", { class: "leader", "aria-hidden": "true" }),
+        h("span", { class: "price" }, money(d.unit_price, d.currency))),
+      h("p", { class: "unit" }, unitText(d.pricing_unit, d.unit_label)),
+      d.description && h("p", { class: "desc" }, d.description),
       d.min_quantity && h("p", { class: "hint" }, `${t().minQty}: ${num(d.min_quantity)}`),
       dishBadges(d),
       h("button", { type: "button", class: "link", id: `alb-${d.id}`, "aria-expanded": String(open), "aria-controls": `al-${d.id}`, onclick: () => toggleAllergens(d) },
@@ -348,6 +393,16 @@ function dishCard(d) {
           onclick: () => setQty(d.id, qty > 0 ? qty + step : first) }, "+"))));
 }
 
+// Printed-menu courses: one numbered heading per category ("01 · Mains"), numbered by the full category list.
+function courses() {
+  const known = new Set(st.cats.map((c) => c.id));
+  const groups = st.cats.map((c, i) => ({ no: String(i + 1).padStart(2, "0"), name: c.name || c.name_he, dishes: st.dishes.filter((d) => d.category_id === c.id) }));
+  groups.push({ no: null, name: null, dishes: st.dishes.filter((d) => !known.has(d.category_id)) });
+  return groups.filter((g) => g.dishes.length).map((g) => h("section", { class: "course" },
+    g.name && h("h3", { class: "course-h" }, h("span", { class: "course-no" }, g.no), " · ", g.name),
+    h("ul", { class: "dishes" }, g.dishes.map(dishCard))));
+}
+
 function viewMenu() {
   const chip = (id, label) => h("button", { type: "button", id: `cat-${id}`, "aria-pressed": String(st.cat === id),
     onclick: () => guard(async () => { st.cat = id; await loadDishes(); render(); }) }, label);
@@ -355,7 +410,7 @@ function viewMenu() {
     h("section", { "aria-labelledby": "menu-h" },
       h("h2", { id: "menu-h" }, t().step2),
       h("div", { class: "chips", role: "group", "aria-label": t().step2 }, chip("all", t().all), st.cats.map((c) => chip(c.id, c.name || c.name_he))),
-      st.dishes.length ? h("ul", { class: "dishes", style: "list-style:none;padding:0;margin:0" }, st.dishes.map(dishCard)) : h("p", {}, t().noDishes),
+      st.dishes.length ? courses() : h("p", {}, t().noDishes),
       h("p", { class: "notice", id: "disclaimer" }, t().disclaimer)),
     h("div", { class: "side" }, h("aside", {}, summaryCard(true)), ...assistantNodes()));
 }
@@ -425,8 +480,20 @@ function viewStatus() {
     h("div", { class: `status ${o.status}`, id: "status" }, h("h2", {}, t().st[o.status] ?? o.status), h("p", {}, t().stDesc[o.status] ?? ""),
       o.decision_note && h("p", {}, h("strong", {}, `${t().note}: `), o.decision_note),
       o.cancel_note && h("p", {}, h("strong", {}, `${t().note}: `), o.cancel_note)),
-    eventRecap(), summaryCard(false), linkBox(),
+    eventRecap(), summaryCard(false), editBox(o), linkBox(),
     h("button", { type: "button", onclick: () => resetOrder() }, t().newOrder));
+}
+// Customers may change a submitted order until the cutoff; it then returns to the owner for approval.
+function editBox(o) {
+  if (o.status !== "pending_approval" && o.status !== "approved") return null;
+  const open = Date.now() < new Date(o.requested_at).getTime() - st.settings.edit_cutoff_hours * 3600e3;
+  if (!open) return h("p", { class: "hint" }, t().changeClosed);
+  return h("div", {}, h("p", { class: "hint" }, t().changeNote),
+    h("button", { type: "button", onclick: () => guard(async () => {
+      st.order = await orderApi("/reopen", { method: "POST", body: JSON.stringify({ version: o.version }) });
+      await loadRecs();
+      st.step = "menu";
+    }) }, t().change));
 }
 
 
@@ -506,6 +573,7 @@ function itemNode(it) {
   if (it.kind === "msg") return h("div", { class: `as-msg ${it.role}` }, h("span", { class: "sr-only" }, it.role === "user" ? t().asYou : t().asBot), h("span", { dir: "auto" }, it.text));
   const node = h("article", { class: "as-card", tabindex: "-1", "aria-label": t().asSuggested });
   fillCard(node, as.props.get(it.id));
+  if (motionOK()) node.animate([{ opacity: 0, transform: "translateY(8px) scale(0.98)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: EASE });
   return node;
 }
 function paintLog() {
@@ -610,10 +678,10 @@ async function decide(pid, action) {
 // ---- shell
 function steps(cur) {
   const names = [["event", t().step1], ["menu", t().step2], ["review", t().step3]];
-  return h("ol", { class: "steps" }, names.map(([k, label]) => h("li", k === cur ? { "aria-current": "step" } : {}, label)));
+  return h("ol", { class: cur === "menu" ? "steps" : "steps narrow" }, names.map(([k, label]) => h("li", k === cur ? { "aria-current": "step" } : {}, label)));
 }
 let placeFab = () => {};
-let barObs;
+let barObs, lastStep = null, lastTotal = null, lastOrderId = null;
 function render() {
   const focusId = document.activeElement?.id;
   const logTop = as.log.scrollTop;
@@ -622,10 +690,17 @@ function render() {
   document.title = "CaterKing";
   $("langs").replaceChildren(h("div", { class: "pills", role: "group", "aria-label": t().lang },
     Object.entries(LANGS).map(([k, label]) => h("button", { type: "button", lang: k, "aria-pressed": String(k === st.lang), onclick: () => setLang(k) }, label))));
-  const step = !st.order ? "event" : st.order.status !== "draft" ? "status" : st.step;
-  const view = { event: viewEvent, menu: viewMenu, review: viewReview, status: viewStatus }[step]();
+  const step = !st.order ? (st.started ? "event" : "hero") : st.order.status !== "draft" ? "status" : st.step;
+  const view = { hero: viewHero, event: viewEvent, menu: viewMenu, review: viewReview, status: viewStatus }[step]();
   if (step !== "menu") as.open = false;
-  app.replaceChildren(...(step === "status" ? [view] : [steps(step), view]));
+  app.replaceChildren(...(step === "status" || step === "hero" ? [view] : [steps(step), view]));
+  if (lastStep && step !== lastStep && motionOK()) // step change: short fade + slide (not on the fixed summary bar)
+    (view.classList.contains("layout") ? view.firstElementChild : view).animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: EASE });
+  lastStep = step;
+  const total = st.order?.total ?? null;
+  if (motionOK() && total != null && lastTotal != null && total !== lastTotal && lastOrderId === st.order.id) // server total changed: quiet highlight
+    document.querySelectorAll("#total, .sum-total").forEach((el) => el.animate([{ backgroundColor: "rgb(77 91 42 / 0.25)" }, { backgroundColor: "rgb(77 91 42 / 0)" }], { duration: 250, easing: EASE }));
+  lastTotal = total; lastOrderId = st.order?.id ?? null;
   document.body.classList.toggle("as-lock", as.open && isPhone());
   as.log.scrollTop = as.stick ? as.log.scrollHeight : logTop;
   as.stick = false;

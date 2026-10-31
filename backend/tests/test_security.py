@@ -117,3 +117,8 @@ def test_security_headers_on_api_and_pages(client):
         assert "frame-ancestors 'none'" in headers["content-security-policy"]
         assert headers["x-content-type-options"] == "nosniff"
         assert headers["referrer-policy"] == "no-referrer"
+
+
+def test_static_files_revalidate_so_deploys_reach_customers(client):
+    assert client.get("/customer/").headers["cache-control"] == "no-cache"
+    assert client.get("/customer/customer.js").headers["cache-control"] == "no-cache"

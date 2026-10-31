@@ -137,6 +137,8 @@ class OrderOut(PricingOut):
     delivery_address: str | None
     delivery_zone_id: uuid.UUID | None
     submitted_at: dt.datetime | None
+    first_submitted_at: dt.datetime | None
+    reopened_at: dt.datetime | None
     decided_at: dt.datetime | None
     decision_note: str | None
     cancelled_at: dt.datetime | None

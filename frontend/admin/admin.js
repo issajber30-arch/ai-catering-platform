@@ -343,6 +343,7 @@ async function orderDetail(id, refresh) {
       h("ul", {}, ...p.diff.map((d) => h("li", {}, diffText(d))))))) : h("p", { class: "hint" }, "No proposals."));
   return h("div", { class: "card order-detail" },
     h("h2", {}, "Order ", statusBadge(o.status)),
+    o.reopened_at ? h("p", { class: "notice", role: "note" }, `Changed by customer at ${o.reopened_at}`) : null,
     h("h3", {}, "Contact"), dl([["Name", o.customer.full_name], ["Email", o.customer.email], ["Phone", o.customer.phone]]),
     h("h3", {}, "Event"), dl([["Type", ev.event_type], ["Date", ev.event_date], ["Adults", ev.adults], ["Children", ev.children],
       ["Vegetarian guests (within total)", ev.vegetarian_guests], ["Vegan guests (within total)", ev.vegan_guests],
@@ -399,8 +400,8 @@ async function showRules(tabs) {
 async function showSettings(tabs) {
   const st = await api("/api/admin/settings");
   const f = (name, label, unit, attrs) => [name, h("label", {}, `${label} (${unit})`, h("input", { name, required: true, value: st[name] ?? "", ...attrs }))];
-  const num = (name, label, unit, max) => f(name, label, unit, { type: "number", min: "0", step: name === "lead_time_days" ? "1" : "0.01", ...(max ? { max } : {}) });
-  const fields = Object.fromEntries([num("lead_time_days", "Notice needed", "days", "365"), num("min_food_total", "Food minimum", "₪"),
+  const num = (name, label, unit, max) => f(name, label, unit, { type: "number", min: "0", step: name === "lead_time_days" || name === "edit_cutoff_hours" ? "1" : "0.01", ...(max ? { max } : {}) });
+  const fields = Object.fromEntries([num("lead_time_days", "Notice needed", "days", "365"), num("edit_cutoff_hours", "Edit cutoff (hours before event)", "hours", "168"), num("min_food_total", "Food minimum", "₪"),
     num("delivery_base_fee", "Delivery base fee", "₪"), num("delivery_per_km", "Per km", "₪"), num("delivery_max_km", "Max distance", "km", "500"),
     f("kitchen_address", "Kitchen address", "text", { type: "text", maxlength: 300 })]);
   const form = h("form", { class: "card", onsubmit: (ev) => {
@@ -409,6 +410,7 @@ async function showSettings(tabs) {
       const body = {};
       for (const [k, label] of Object.entries(fields)) body[k] = label.querySelector("input").value.trim();
       body.lead_time_days = Number(body.lead_time_days);
+      body.edit_cutoff_hours = Number(body.edit_cutoff_hours);
       await api("/api/admin/settings", { method: "PUT", body: JSON.stringify(body) });
       await showSettings(tabs); say("Settings saved.");
     });

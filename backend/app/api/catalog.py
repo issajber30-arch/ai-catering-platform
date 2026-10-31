@@ -64,7 +64,10 @@ def delivery_zones(db: Db) -> list[PublicZoneOut]:
 def public_settings(db: Db) -> PublicSettingsOut:
     s = settings_service.get(db)
     return PublicSettingsOut(
-        lead_time_days=s.lead_time_days, min_food_total=s.min_food_total, max_km=s.delivery_max_km
+        lead_time_days=s.lead_time_days,
+        edit_cutoff_hours=s.edit_cutoff_hours,
+        min_food_total=s.min_food_total,
+        max_km=s.delivery_max_km,
     )
 
 
