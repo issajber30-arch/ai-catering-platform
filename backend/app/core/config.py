@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_anon_key: str | None = None
     supabase_service_role_key: str | None = None
+    test_database_url: str | None = None
+    default_currency: str = "ILS"
+    business_timezone: str = "Asia/Jerusalem"
+    storage_bucket: str = "dish-images"
+    anthropic_api_key: str | None = None
 
 
 @lru_cache
