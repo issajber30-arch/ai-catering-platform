@@ -1,69 +1,100 @@
-/* Editorial tokens: cream paper, espresso ink, one olive accent, 1px rules, 4px radius. Shared by customer and admin. */
+/* F1 "Pit Wall" tokens (dark only). Shared by landing, customer and admin.
+   The legacy --color and --ep variables below keep customer.css and admin.css rendering until their restyle PRs. */
 :root {
-  --color-bg: #faf7f2;
-  --color-surface: #ffffff;
-  --color-text: #221b16;
-  --color-muted: #6b5f55;
-  --color-accent: #4d5b2a;
-  --color-success: #3f6212;
-  --color-danger: #991b1b;
-  --color-warning: #8a5a00;
-  --color-rule: #e2d9ce;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --space-8: 32px;
+  color-scheme: dark;
+  --carbon: #15151E;
+  --slate: #0B0F17;
+  --panel: #121722;
+  --panel-2: #181e2b;
+  --line: rgb(255 255 255 / 0.1);
+  --line-strong: rgb(255 255 255 / 0.2);
+  --fg: #F1F5F9;
+  --muted: #94A3B8;
+  --red: #FF1E00;
+  --red-hover: #ff4026;
+  --purple: #A855F7;
+  --green: #22C55E;
+  --amber: #F59E0B;
+
+  --f-sans: "Plus Jakarta Sans", Heebo, "Noto Kufi Arabic", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --fs-xs: 0.75rem; --fs-sm: 0.875rem; --fs-md: 1rem; --fs-lg: 1.25rem;
+  --fs-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2.25rem);
+  --fs-2xl: clamp(2rem, 1.2rem + 4vw, 4rem);
+
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px;
   --radius: 4px;
-  --shadow-1: none;
-  /* One family per role, covering Latin, Hebrew and Arabic: the browser picks the face per script. */
-  --font: "IBM Plex Sans", "IBM Plex Sans Hebrew", "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --target: 44px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px); --safe-r: env(safe-area-inset-right, 0px);
+
+  /* Legacy aliases (light, unchanged) for customer/admin until restyled. */
+  --color-bg: #faf7f2; --color-surface: #ffffff; --color-text: #221b16; --color-muted: #6b5f55;
+  --color-accent: #4d5b2a; --color-success: #3f6212; --color-danger: #991b1b; --color-warning: #8a5a00;
+  --color-rule: #e2d9ce; --shadow-1: none;
+  --font: var(--f-sans);
+  --ep-primary: #4d5b2a; --ep-primary-hover: #3c4721; --ep-primary-bg: #f2f5ec;
+  --ep-bg: #faf7f2; --ep-sand: #f4efea; --ep-border: #e2d9ce; --ep-border-strong: #cfc4b5;
+  --ep-ink: #221b16; --ep-text: #221b16; --ep-text-2: #382e26; --ep-text-3: #6b5f55; --ep-radius: 4px;
+  --ep-meat: #991b1b; --ep-meat-bg: #fef2f2;
+  --ep-dairy: #0369a1; --ep-dairy-bg: #f0f9ff;
+  --ep-pareve: #3f6212; --ep-pareve-bg: #f7fee7;
+  --ep-vegan: #854d0e; --ep-vegan-bg: #fefce8;
+  --ep-pending: #92400e; --ep-pending-bg: #fffbeb;
+  --ep-font-head: var(--f-sans); --ep-font-body: var(--f-sans); --ep-target: 44px;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+html { -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; font-family: var(--f-sans); line-height: 1.5; color: var(--color-text); background: var(--color-bg); }
+/* New F1 pages opt in; legacy pages keep their light body until restyled. */
+body.f1 { color: var(--fg); background: var(--slate); min-block-size: 100dvh;
+  padding-inline: var(--safe-l) var(--safe-r); }
+body.f1 .carbon { background-color: var(--carbon);
+  background-image: linear-gradient(135deg, rgb(255 255 255 / 0.025) 25%, transparent 25% 50%, rgb(255 255 255 / 0.025) 50% 75%, transparent 75%);
+  background-size: 6px 6px; }
 
-body {
-  margin: 0;
-  font-family: var(--font);
-  line-height: 1.5;
-  color: var(--color-text);
-  background: var(--color-bg);
+main { max-width: 1100px; margin-inline: auto; padding: var(--space-6) var(--space-4); }
+body.f1 main { max-width: none; padding: 0; }
+
+:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+body:not(.f1) :focus-visible { outline-color: var(--color-accent); }
+
+h1, h2, h3 { font-weight: 800; line-height: 1.15; letter-spacing: -0.01em; }
+:lang(ar) h1, :lang(ar) h2, :lang(ar) h3 { font-weight: 700; letter-spacing: 0; line-height: 1.35; }
+
+/* Labels: mono, uppercase, tracked. Always LTR (racing terms stay English). */
+.label, .chip { direction: ltr; unicode-bidi: isolate; }
+.label { font: 600 var(--fs-xs)/1.2 var(--f-mono); text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); }
+
+button, a, input, select, textarea, summary, label { touch-action: manipulation; }
+input, select, textarea { font: inherit; font-size: 16px; min-block-size: var(--target); color: inherit;
+  background: var(--slate); border: 1px solid var(--line-strong); border-radius: var(--radius); padding-inline: var(--space-3); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); min-block-size: var(--target);
+  padding-inline: var(--space-6); font: 800 var(--fs-md)/1 var(--f-sans); text-decoration: none; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--radius); color: #fff; background: transparent;
+  transition: transform 120ms var(--ease-out), background-color 120ms var(--ease-out), border-color 120ms var(--ease-out); }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--red); box-shadow: 0 0 24px rgb(255 30 0 / 0.3); }
+.btn-ghost { border-color: var(--line-strong); color: var(--fg); background: rgb(255 255 255 / 0.02); }
+.btn[disabled], .btn[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover { background: var(--red-hover); }
+  .btn-ghost:hover { border-color: var(--fg); }
 }
 
-main {
-  max-width: 1100px;
-  margin-inline: auto;
-  padding: var(--space-6) var(--space-4);
-}
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--space-6); }
 
-:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+.chip { display: inline-flex; align-items: center; min-block-size: 24px; padding-inline: var(--space-2);
+  font: 600 var(--fs-xs)/1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase;
+  border-radius: var(--radius); color: var(--chip, var(--muted)); background: color-mix(in srgb, var(--chip, var(--muted)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip, var(--muted)) 40%, transparent); }
+.chip-red { --chip: var(--red); } .chip-purple { --chip: var(--purple); }
+.chip-green { --chip: var(--green); } .chip-amber { --chip: var(--amber); }
 
 @media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
-}
-
-/* Customer UI tokens (also used by admin for fonts and badges). */
-:root {
-  --ep-primary: #4d5b2a;
-  --ep-primary-hover: #3c4721;
-  --ep-primary-bg: #f2f5ec;
-  --ep-bg: #faf7f2;
-  --ep-sand: #f4efea;
-  --ep-border: #e2d9ce;
-  --ep-border-strong: #cfc4b5;
-  --ep-ink: #221b16;
-  --ep-text: #221b16;
-  --ep-text-2: #382e26;
-  --ep-text-3: #6b5f55;
-  --ep-radius: 4px;
-  --ep-meat: #991b1b;       --ep-meat-bg: #fef2f2;
-  --ep-dairy: #0369a1;      --ep-dairy-bg: #f0f9ff;
-  --ep-pareve: #3f6212;     --ep-pareve-bg: #f7fee7;
-  --ep-vegan: #854d0e;      --ep-vegan-bg: #fefce8;
-  --ep-pending: #92400e;    --ep-pending-bg: #fffbeb;
-  --ep-font-head: "Frank Ruhl Libre", "Noto Naskh Arabic", Georgia, "Times New Roman", serif;
-  --ep-font-body: var(--font);
-  --ep-target: 44px;
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

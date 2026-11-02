@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CHAR, ForeignKey, Numeric, SmallInteger, Text, func
+from sqlalchemy import CHAR, ForeignKey, Integer, Numeric, SmallInteger, Text, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -80,7 +80,10 @@ class DishDietary(Base):
 
 class Allergen(Base):
     __tablename__ = "allergens"
-    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    # SQLite only auto-numbers an INTEGER primary key.
+    id: Mapped[int] = mapped_column(
+        SmallInteger().with_variant(Integer, "sqlite"), primary_key=True
+    )
     name: Mapped[str] = mapped_column(Text, unique=True)
 
 

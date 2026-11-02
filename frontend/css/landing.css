@@ -1,0 +1,151 @@
+/* yumm.ai landing page. Mobile first, logical properties, no JavaScript.
+   The mascot appears large once (hero) and once small (assistant introduction); everything else is calm. */
+
+body { background: var(--color-bg); }
+/* The sections own their gutters, so cancel base.css's generic main padding and width. */
+main { max-width: none; padding: 0; }
+
+.skip-link {
+  position: absolute;
+  inset-block-start: -100px;
+  inset-inline-start: var(--space-4);
+  z-index: var(--z-toast);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border-radius: var(--radius);
+}
+.skip-link:focus { inset-block-start: var(--space-3); }
+
+.muted { color: var(--color-muted); }
+.small { font-size: var(--text-sm); }
+.btn-lg { min-height: 52px; padding: 0 var(--space-6); font-size: var(--text-lg); }
+
+/* ---------- frame ---------- */
+.top-inner, main > section, .foot {
+  max-width: var(--container);
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+.top {
+  position: sticky;
+  inset-block-start: env(safe-area-inset-top, 0px);
+  z-index: var(--z-sticky);
+  background: rgb(255 249 237 / 0.94);
+  backdrop-filter: blur(8px);
+  border-block-end: 2px solid var(--color-line);
+}
+.top-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); padding-block: var(--space-3); }
+.brand { font-size: 1.625rem; line-height: 1; }
+
+.section { padding-block: var(--space-12); }
+.section > h2, .cta h2 { font-size: 2rem; font-family: var(--font-display); font-weight: 800; margin-block-end: var(--space-6); text-wrap: balance; }
+
+/* ---------- hero ---------- */
+.hero { display: grid; gap: var(--space-8); align-items: center; padding-block: var(--space-8) var(--space-12); }
+.hero h1 { font-size: clamp(2.25rem, 1.4rem + 4vw, 4rem); line-height: 1.1; }
+.lead { font-size: var(--text-lg); max-width: 46ch; color: var(--color-muted); margin-block-start: var(--space-4); }
+.hero-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-block-start: var(--space-6); }
+
+.hero-art { position: relative; min-height: 380px; display: grid; place-items: end center; }
+.sun {
+  position: absolute;
+  inset-block-start: 4%;
+  inset-inline: 8%;
+  aspect-ratio: 1;
+  max-height: 92%;
+  margin-inline: auto;
+  background: var(--color-highlight);
+  border: var(--outline-width) solid var(--brand-ink);
+  border-radius: 50%;
+}
+.hero-mascot { position: relative; z-index: 1; height: min(430px, 70vw); }
+.hero-mascot img { height: 100%; width: auto; }
+.hero-decor { position: absolute; z-index: 2; }
+.hero-decor img { height: 100%; width: auto; }
+.hero-tomatoes { height: 88px; inset-block-end: 4%; inset-inline-start: 2%; }
+.hero-confetti { height: 96px; inset-block-start: 0; inset-inline-end: 4%; }
+
+/* ---------- occasions ---------- */
+.occasions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); }
+.occasion-card {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: center;
+  align-content: end;
+  height: 100%;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: var(--outline-width) solid var(--brand-ink);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 700;
+  text-align: center;
+  transition: transform var(--dur-base) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.occasion-card:hover { transform: translateY(-3px); background: var(--color-accent-soft); }
+.occasion-card picture, .occasion-card img { display: block; }
+.occasion-card img { height: 96px; width: auto; max-width: 100%; object-fit: contain; }
+
+/* ---------- how it works ---------- */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-8); }
+.step { display: grid; gap: var(--space-2); justify-items: start; align-content: start; }
+.step-icon { height: 92px; width: auto; max-width: 140px; object-fit: contain; }
+.step h3 { font-size: var(--text-xl); font-family: var(--font); }
+.step p { color: var(--color-muted); max-width: 34ch; }
+
+/* ---------- assistant ---------- */
+.assistant {
+  display: grid;
+  gap: var(--space-6);
+  align-items: center;
+  background: var(--color-surface-2);
+  border: var(--outline-width) solid var(--color-line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-6);
+  margin-block: var(--space-4);
+}
+.assistant-mascot { justify-self: center; height: 280px; }
+.assistant-mascot img { height: 100%; width: auto; }
+.assistant h2 { margin-block-end: 0; }
+.example { margin: var(--space-6) 0 0; display: grid; gap: var(--space-2); max-width: 460px; }
+.example figcaption { font-size: var(--text-sm); font-weight: 700; color: var(--color-muted); }
+.lproposal { background: var(--color-surface); border: var(--outline-width) solid var(--color-accent); border-radius: var(--radius); padding: var(--space-4); display: grid; gap: var(--space-3); }
+.lproposal h3 { font-size: var(--text-lg); color: var(--color-accent); font-family: var(--font); }
+.lproposal .row { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; font-size: 0.9375rem; }
+.lproposal .total { border-block-start: 2px solid var(--color-line); padding-block-start: var(--space-3); font-weight: 700; }
+.lproposal .delta { color: var(--color-warning); display: inline-block; unicode-bidi: isolate; }
+.lproposal .actions { display: flex; gap: var(--space-2); }
+.lproposal .actions .btn { flex: 1; }
+
+/* ---------- closing CTA + footer ---------- */
+.cta { text-align: center; padding-block: var(--space-12); display: grid; justify-items: center; gap: var(--space-4); }
+.cta h2 { margin: 0; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding-block: var(--space-6); border-block-start: 2px solid var(--color-line); }
+.foot .wordmark { font-size: 1.25rem; }
+.foot a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-accent); font-weight: 600; text-underline-offset: 3px; }
+
+/* ---------- wider screens ---------- */
+@media (min-width: 760px) {
+  .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 900px) {
+  .hero { grid-template-columns: 1.1fr 0.9fr; padding-block: var(--space-12); }
+  .hero-art { min-height: 520px; }
+  .hero-mascot { height: 460px; }
+  .assistant { grid-template-columns: auto 1fr; gap: var(--space-12); padding-inline: var(--space-8); }
+  .assistant-mascot { height: 340px; }
+}
+
+/* ---------- interactive example of the approval card ---------- */
+.lproposal { transition: border-color var(--dur-base) var(--ease), background-color var(--dur-base) var(--ease); }
+.lproposal.is-applied { border-color: var(--color-success); background: var(--color-success-soft); }
+.lproposal.is-rejected { border-color: var(--color-line); }
+.lproposal .done { display: grid; gap: var(--space-3); position: relative; }
+.demo-total { font-weight: 700; }
+.demo-total strong { font-size: var(--text-xl); }
+.done-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); position: relative; }
+.link-btn { background: none; border: 0; padding: 0; min-height: 32px; color: var(--color-accent); font: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

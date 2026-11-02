@@ -7,14 +7,16 @@ import psycopg
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, make_url, text
+from sqlalchemy import create_engine, insert, make_url, text
 from sqlalchemy.orm import Session
 
 from app.core import ratelimit, security
 from app.core.config import get_settings
-from app.core.db import get_db
+from app.core.db import Base, get_db, make_engine
 from app.core.storage import get_uploader
 from app.main import app
+from app.migrate import SETTINGS, create_sqlite_schema
+from app.models.settings import BusinessSettings
 from app.services.geo import get_geocoder
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "database" / "migrations"
@@ -23,7 +25,7 @@ TABLES = (
     "dish_allergens, dish_dietary, dishes, dish_categories, allergens, "
     "delivery_zones, time_slots, blocked_dates, order_items, orders, events, customers, "
     "quantity_rules, geocode_cache, business_settings, ai_change_proposals, ai_messages, "
-    "ai_conversations"
+    "ai_conversations, order_ratings, notifications"
 )
 
 
@@ -33,9 +35,14 @@ def _reset_ratelimit():
 
 
 @pytest.fixture(scope="session")
-def engine():
+def engine(tmp_path_factory):
     url = get_settings().test_database_url
     assert url, "Set TEST_DATABASE_URL (e.g. postgresql+psycopg://localhost/catering_test)"
+    if make_url(url).get_backend_name() == "sqlite":
+        # Always a fresh throwaway file, whatever path the URL names.
+        engine = make_engine(f"sqlite:///{tmp_path_factory.mktemp('db') / 'catering_test.db'}")
+        create_sqlite_schema(engine, seed=False)
+        return engine
     # The schema is dropped below, so refuse anything that isn't clearly a throwaway test DB.
     assert make_url(url).database.endswith("_test"), "TEST_DATABASE_URL must name a *_test database"
     with psycopg.connect(url.replace("+psycopg", ""), autocommit=True) as conn:
@@ -48,11 +55,22 @@ def engine():
 @pytest.fixture
 def db(engine):
     with Session(engine) as session:
-        session.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
-        session.execute(text("INSERT INTO business_settings DEFAULT VALUES"))
+        if engine.dialect.name == "sqlite":
+            for table in reversed(Base.metadata.sorted_tables):
+                session.execute(table.delete())
+            session.execute(insert(BusinessSettings).values(id=True, **SETTINGS))
+        else:
+            session.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+            session.execute(text("INSERT INTO business_settings DEFAULT VALUES"))
         session.execute(text("INSERT INTO allergens (name) VALUES ('peanuts'), ('milk')"))
         session.commit()
         yield session
+
+
+postgres_only = pytest.mark.skipif(
+    make_url(get_settings().test_database_url or "postgresql://").get_backend_name() == "sqlite",
+    reason="needs Postgres (SQL migrations, CHECK constraints or row locks)",
+)
 
 
 @pytest.fixture(scope="session")

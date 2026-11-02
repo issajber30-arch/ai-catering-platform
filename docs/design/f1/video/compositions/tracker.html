@@ -1,0 +1,179 @@
+<template>
+  <style>
+    @font-face { font-family: "CKHe"; src: local("Arial Hebrew"), local("ArialHebrew"); }
+    #root { position: absolute; inset: 0; overflow: hidden; background: #0b0f17; font-family: Inter, sans-serif; }
+    #tr-grid { position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 64px 64px; }
+    #tr-world { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+    #tr-phone { position: absolute; left: 330px; top: 50px; width: 470px; height: 980px; border-radius: 62px;
+      background: #1c1f28; border: 2px solid #3a3f4d; box-shadow: 0 40px 120px rgba(0,0,0,.6), 0 0 0 8px #0f1118; }
+    #tr-screen { position: absolute; left: 15px; top: 20px; width: 440px; height: 940px; border-radius: 46px;
+      overflow: hidden; background: #0b0f17; }
+    #tr-cam { position: absolute; left: 0; top: 0; width: 780px; height: 3042px; transform-origin: 0 0; transform: scale(0.564103); }
+    #tr-cam img { position: absolute; left: 0; top: 0; width: 780px; height: 3042px; }
+    #tr-island { position: absolute; left: 170px; top: 14px; width: 100px; height: 30px; border-radius: 16px; background: #000; }
+    #tr-sticky { position: absolute; left: 0; bottom: 0; width: 440px; height: 80px; overflow: hidden; }
+    #tr-sticky img { position: absolute; left: 0; top: -1636px; width: 440px; height: 1716px; }
+    .tr-card { position: absolute; width: 210px; height: 185px; border-radius: 6px; background: #141022;
+      border: 3px solid #a855f7; padding: 22px 18px; text-align: right; color: #fff; }
+    .tr-card .k { font-family: "JetBrains Mono", monospace; font-size: 22px; font-weight: 700; letter-spacing: .04em; }
+    .tr-card .h { font-family: "CKHe", sans-serif; font-size: 24px; font-weight: 700; margin-top: 10px; }
+    .tr-card .t { font-family: "JetBrains Mono", monospace; font-size: 26px; font-weight: 700; margin-top: 10px; }
+    .tr-card .s { font-family: "JetBrains Mono", monospace; font-size: 18px; margin-top: 4px; letter-spacing: .06em; }
+    .tr-bar { position: absolute; left: 12px; right: 12px; bottom: 10px; height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); overflow: hidden; }
+    .tr-fill { width: 100%; height: 100%; transform-origin: 100% 50%; }
+    #tr-s1 { left: 512px; top: 862px; }
+    #tr-s1 .tr-fill { background: #a855f7; }
+    #tr-s2 { left: 285px; top: 862px; background: #0d1426; border-color: #3b82f6; }
+    #tr-s2 .tr-fill { background: #3b82f6; }
+    #tr-drs { position: absolute; left: 58px; top: 280px; width: 210px; height: 88px; border-radius: 6px;
+      border: 3px solid #38bdf8; box-shadow: 0 0 36px 6px rgba(56,189,248,.55); }
+    #tr-status { position: absolute; left: 170px; top: 462px; width: 535px; height: 100px; background: #13141d; text-align: right; }
+    #tr-status .big { font-weight: 900; font-size: 50px; color: #fff; letter-spacing: -0.02em; line-height: 58px; }
+    #tr-status .big b { color: #3b82f6; }
+    #tr-status .sub { font-family: "CKHe", sans-serif; font-size: 24px; color: #94a3b8; margin-top: 4px; }
+    #tr-bubble { position: absolute; left: 22px; top: 700px; width: 396px; padding: 18px 20px; border-radius: 14px;
+      background: #15151e; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 50px rgba(0,0,0,.5); color: #fff; }
+    #tr-bubble .who { font-family: "JetBrains Mono", monospace; font-size: 18px; color: #ff1e00; letter-spacing: .14em; }
+    #tr-bubble .msg { font-size: 26px; line-height: 34px; margin-top: 8px; }
+    #tr-panel { position: absolute; left: 1060px; top: 210px; width: 760px; }
+    #tr-panel h2 { font-weight: 900; font-size: 76px; color: #fff; letter-spacing: -0.035em; }
+    #tr-panel h2 span { display: inline-block; }
+    #tr-kick { font-family: "JetBrains Mono", monospace; font-size: 22px; color: #ff1e00; letter-spacing: .3em; margin-bottom: 14px; }
+    .tr-line { font-family: "JetBrains Mono", monospace; font-size: 27px; color: #cbd5e1; margin-top: 26px;
+      display: flex; gap: 22px; border-left: 3px solid #333a4a; padding-left: 18px; }
+    .tr-line .l { width: 250px; color: #64748b; }
+    #tr-drs, #tr-s1, #tr-s2, #tr-status, #tr-bubble, .tr-line, #tr-ripple, #tr-cursor, #tr-s1b { opacity: 0; }
+    #tr-cursor { position: absolute; left: 0; top: 0; width: 46px; height: 64px; z-index: 50; }
+    #tr-ripple { position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%;
+      border: 3px solid #ff1e00; z-index: 49; }
+  </style>
+  <div id="root" data-composition-id="tracker" data-width="1920" data-height="1080">
+    <div id="tr-grid"></div>
+    <div id="tr-world" data-layout-allow-overflow>
+      <div id="tr-phone">
+        <div id="tr-screen">
+          <div id="tr-cam">
+            <img src="assets/tracker.png" alt="Customer tracker" />
+            <div id="tr-drs" data-layout-ignore class="clip" data-start="0" data-duration="10.6"></div>
+            <div id="tr-s1" data-layout-ignore class="tr-card clip" data-start="0" data-duration="10.6">
+              <div class="k" id="tr-s1k">● SECTOR 1</div><div class="h">בישול והרכבה</div>
+              <div class="t">00:24.812</div><div class="s" style="position:relative;height:24px"><span id="tr-s1a" style="position:absolute;right:0;color:#a855f7">PURPLE LAP</span><span id="tr-s1b" style="position:absolute;right:0;color:#22c55e">✓ COMPLETE</span></div>
+              <div class="tr-bar"><div class="tr-fill" id="tr-s1f"></div></div>
+            </div>
+            <div id="tr-s2" data-layout-ignore class="tr-card clip" data-start="0" data-duration="10.6">
+              <div class="k" style="color:#3b82f6">● SECTOR 2</div><div class="h">שינוע ומסלול</div>
+              <div class="t" id="tr-s2t">00:00.000</div><div class="s" style="color:#3b82f6">LIVE</div>
+              <div class="tr-bar"><div class="tr-fill" id="tr-s2f"></div></div>
+            </div>
+            <div id="tr-status" data-layout-ignore class="clip" data-start="0" data-duration="10.6">
+              <div class="big"><b>Flying Lap</b> — On Track</div>
+              <div class="sub">יציאה למשלוח · Out for delivery</div>
+            </div>
+          </div>
+          <div id="tr-sticky"><img src="assets/tracker.png" alt="" /></div>
+          <div id="tr-bubble" data-layout-ignore class="clip" data-start="0" data-duration="10.6">
+            <div class="who">RACE ENGINEER · RADIO</div>
+            <div class="msg">On a <b>Flying Lap</b> — ETA 18:22.</div>
+          </div>
+          <div id="tr-island"></div>
+        </div>
+      </div>
+    </div>
+    <div id="tr-panel">
+      <div id="tr-kick" class="clip" data-start="0" data-duration="10.6">CUSTOMER APP</div>
+      <h2 id="tr-title" class="clip" data-start="0" data-duration="10.6"><span id="tr-w1">Order</span> <span id="tr-w2">tracker</span></h2>
+      <div class="tr-line clip" id="tr-l1" data-start="0" data-duration="10.6"><span class="l">DRS</span><span style="color:#38bdf8">ENABLED · ahead of plan</span></div>
+      <div class="tr-line clip" id="tr-l2" data-start="0" data-duration="10.6"><span class="l">S1 KITCHEN</span><span style="color:#22c55e">00:24.812 ✓</span></div>
+      <div class="tr-line clip" id="tr-l3" data-start="0" data-duration="10.6"><span class="l">S2 ON TRACK</span><span style="color:#3b82f6" id="tr-l3t">LIVE</span></div>
+      <div class="tr-line clip" id="tr-l4" data-start="0" data-duration="10.6"><span class="l">STATUS</span><span style="color:#fff">BOX BOX → FLYING LAP</span></div>
+      <div class="tr-line clip" id="tr-l5" data-start="0" data-duration="10.6"><span class="l">RACE ENGINEER</span><span style="color:#ff1e00">on the radio</span></div>
+    </div>
+    <div id="tr-ripple" class="clip" data-start="0" data-duration="10.6"></div>
+    <svg id="tr-cursor" class="clip" data-start="0" data-duration="10.6" viewBox="0 0 23 32">
+      <path d="M1 1 L1 25 L7 19.5 L11 29 L15 27.3 L11 18 L19 18 Z" fill="#fff" stroke="#0b0f17" stroke-width="1.6" stroke-linejoin="round" />
+    </svg>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Geometry: screen origin (345,70) in the frame; tracker image scaled k into the phone.
+    const k = 440 / 780;
+    const W0 = { s: 1, x: 0, y: 0 };
+    const W1 = { s: 1.75, x: -369.8, y: -525.2 };  // sector cards
+    const W2 = { s: 1.75, x: -398.3, y: -76 };     // status card
+    const P = (nx, ny, w) => ({ x: w.x + w.s * (345 + nx * k), y: w.y + w.s * (70 + ny * k) });
+    const world = (w, t, d) => tl.to("#tr-world", { scale: w.s, x: w.x, y: w.y, duration: d, ease: "power2.inOut" }, t);
+    const move = (p, t, d) => tl.to("#tr-cursor", { x: p.x, y: p.y, duration: d, ease: "power3.inOut" }, t);
+    const click = (t, p) => {
+      tl.to("#tr-cursor", { scale: 0.82, duration: 0.07, ease: "power2.in", transformOrigin: "0 0" }, t)
+        .to("#tr-cursor", { scale: 1, duration: 0.12, ease: "power2.out" }, t + 0.07);
+      tl.set("#tr-ripple", { x: p.x, y: p.y }, t);
+      tl.fromTo("#tr-ripple", { scale: 0.3, opacity: 0.9 }, { scale: 1.6, opacity: 0, duration: 0.35, ease: "expo.out" }, t);
+    };
+    const line = (id, t) => tl.fromTo(id, { opacity: 0, filter: "blur(6px)", borderLeftColor: "#ff1e00" },
+      { opacity: 1, filter: "blur(0px)", borderLeftColor: "#333a4a", duration: 0.25, ease: "power4.out" }, t);
+
+    // initial states
+    tl.set("#tr-world", { scale: 1, x: 0, y: 0, transformOrigin: "0 0" }, 0);
+    tl.set("#tr-cursor", { x: 1500, y: 1150, scale: 1 }, 0);
+
+    // arrive: phone whips in from the right
+    tl.fromTo("#tr-phone", { x: 1100 }, { x: 0, duration: 0.5, ease: "expo.out" }, 0);
+    tl.fromTo("#tr-kick", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 0.3);
+    tl.fromTo("#tr-w1", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13 }, 0.4);
+    tl.fromTo("#tr-w2", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.13 }, 0.47);
+
+    // DRS
+    const drs = P(163, 324, W0);
+    tl.fromTo("#tr-cursor", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 1.0);
+    move(drs, 1.0, 0.7);
+    click(1.85, drs);
+    tl.fromTo("#tr-drs", { opacity: 0 }, { opacity: 1, duration: 0.12 }, 1.86)
+      .to("#tr-drs", { opacity: 0.55, duration: 0.5, ease: "power2.out" }, 2.1);
+    line("#tr-l1", 1.95);
+
+    // punch in on the sector cards, click S1
+    world(W1, 2.5, 0.6);
+    const s1 = P(617, 955, W1);
+    move(s1, 2.5, 0.8);
+    click(3.45, s1);
+    tl.fromTo("#tr-s1", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 3.46);
+    tl.fromTo("#tr-s1f", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: "power2.inOut" }, 3.5);
+    tl.to("#tr-s1", { borderColor: "#22c55e", duration: 0.2 }, 4.0);
+    tl.to("#tr-s1f", { backgroundColor: "#22c55e", duration: 0.2 }, 4.0);
+    tl.to("#tr-s1k", { color: "#22c55e", duration: 0.2 }, 4.0);
+    tl.to("#tr-s1a", { opacity: 0, duration: 0.12 }, 4.0);
+    tl.fromTo("#tr-s1b", { opacity: 0 }, { opacity: 1, duration: 0.12 }, 4.05);
+    line("#tr-l2", 4.05);
+
+    // sector 2 goes live, counter runs
+    tl.fromTo("#tr-s2", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.3, ease: "expo.out" }, 4.3);
+    tl.fromTo("#tr-s2f", { scaleX: 0 }, { scaleX: 0.42, duration: 2.4, ease: "none" }, 4.3);
+    const clock = { v: 0 };
+    tl.fromTo(clock, { v: 0 }, { v: 7.418, duration: 2.4, ease: "none",
+      onUpdate: () => { const el = document.getElementById("tr-s2t"); if (el) el.textContent = "00:0" + clock.v.toFixed(3); } }, 4.3);
+    move(P(390, 955, W1), 4.2, 0.5);
+    line("#tr-l3", 4.5);
+
+    // pan to the status card: Box Box becomes Flying Lap
+    world(W2, 5.2, 0.6);
+    move(P(440, 512, W2), 5.2, 0.7);
+    tl.fromTo("#tr-status", { opacity: 0, filter: "blur(10px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.25, ease: "power4.out" }, 6.0);
+    line("#tr-l4", 6.1);
+
+    // back out, ask the race engineer
+    world(W0, 6.9, 0.6);
+    const ask = { x: 458, y: 968 };
+    move(ask, 6.9, 0.6);
+    click(7.55, ask);
+    tl.fromTo("#tr-bubble", { opacity: 0, y: 40, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: "expo.out" }, 7.65);
+    line("#tr-l5", 7.8);
+
+    // whip out left toward the Pit Wall
+    tl.to(["#tr-world", "#tr-panel"], { x: "-=1400", duration: 0.35, ease: "power3.in" }, 10.15);
+    tl.to("#tr-cursor", { x: "-=1400", duration: 0.35, ease: "power3.in" }, 10.15);
+    window.__timelines["tracker"] = tl;
+  </script>
+</template>

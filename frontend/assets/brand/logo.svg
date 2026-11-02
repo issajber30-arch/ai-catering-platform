@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 0 520 100" width="520" height="100" role="img" aria-label="CaterKing">
+<g class="ck-mark">
+  <g class="ck-streaks" stroke="#FF1E00" stroke-width="4" stroke-linecap="round">
+    <line x1="-34" y1="40" x2="-8" y2="40"/><line x1="-44" y1="52" x2="-6" y2="52"/><line x1="-28" y1="64" x2="-4" y2="64"/>
+  </g>
+  <path class="ck-crown" d="M8 70 L2 22 L32 46 L60 8 L88 46 L118 22 L112 70 Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" pathLength="1"/>
+  <path class="ck-crown-fill" d="M8 70 L2 22 L32 46 L60 8 L88 46 L118 22 L112 70 Z" fill="#FF1E00"/>
+  <g class="ck-band">
+    <rect x="6" y="74" width="108" height="18" fill="#FFFFFF"/>
+    <g fill="#15151E"><rect x="6" y="74" width="9" height="9"/><rect x="24" y="74" width="9" height="9"/><rect x="42" y="74" width="9" height="9"/><rect x="60" y="74" width="9" height="9"/><rect x="78" y="74" width="9" height="9"/><rect x="96" y="74" width="9" height="9"/>
+    <rect x="15" y="83" width="9" height="9"/><rect x="33" y="83" width="9" height="9"/><rect x="51" y="83" width="9" height="9"/><rect x="69" y="83" width="9" height="9"/><rect x="87" y="83" width="9" height="9"/><rect x="105" y="83" width="9" height="9"/></g>
+  </g>
+</g>
+<text x="140" y="74" font-family="'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="62" letter-spacing="-2" fill="#FFFFFF">CATER<tspan fill="#FF1E00">KING</tspan></text>
+</svg>

@@ -18,6 +18,10 @@ def num(d: Decimal) -> str:
     return text.rstrip("0").rstrip(".") if "." in text else text
 
 
+def set_safety_car(db: Session, on: bool) -> BusinessSettings:
+    return save(db, repo.get(db), {"safety_car": on})
+
+
 def update(db: Session, data: dict, geocode: geo.Geocoder) -> BusinessSettings:
     s = repo.get(db)
     if data["kitchen_address"] != s.kitchen_address:

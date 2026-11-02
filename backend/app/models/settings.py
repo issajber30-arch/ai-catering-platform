@@ -1,7 +1,7 @@
 import datetime as dt
 from decimal import Decimal
 
-from sqlalchemy import Numeric, Text, func
+from sqlalchemy import Numeric, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -21,6 +21,7 @@ class BusinessSettings(Base):
     kitchen_address: Mapped[str] = mapped_column(Text)
     kitchen_lat: Mapped[float]
     kitchen_lon: Mapped[float]
+    safety_car: Mapped[bool] = mapped_column(default=False, server_default=false())
 
 
 class GeocodeCache(Base):

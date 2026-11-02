@@ -1,0 +1,158 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; overflow: hidden; background: #0b0f17; font-family: Inter, sans-serif; }
+    #pw-grid { position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 64px 64px; }
+    #pw-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+    #pw-win { position: absolute; left: 80px; top: 110px; width: 1760px; height: 930px; border-radius: 14px;
+      background: #15151e; border: 1px solid #3a3f4d; box-shadow: 0 40px 120px rgba(0,0,0,.6); overflow: hidden; }
+    #pw-chrome { position: absolute; left: 0; top: 0; right: 0; height: 44px; background: #1c1f28; border-bottom: 1px solid #2a2f3b; }
+    .pw-dot { position: absolute; top: 15px; width: 14px; height: 14px; border-radius: 50%; }
+    #pw-url { position: absolute; left: 110px; top: 9px; width: 620px; height: 26px; border-radius: 7px; background: #0f121a;
+      font-family: "JetBrains Mono", monospace; font-size: 15px; color: #94a3b8; padding: 4px 14px; }
+    #pw-content { position: absolute; left: 0; top: 44px; width: 1760px; height: 886px; overflow: hidden; }
+    #pw-cam { position: absolute; left: 0; top: 0; width: 2560px; height: 2712px; transform-origin: 0 0; }
+    #pw-cam > img { position: absolute; left: 0; top: 0; width: 2560px; height: 2712px; }
+    #pw-sc { position: absolute; left: 243px; top: 10px; width: 282px; height: 87px; border-radius: 6px; background: #f59e0b;
+      box-shadow: 0 0 40px 6px rgba(245,158,11,.55); color: #111; padding: 12px 18px; }
+    #pw-sc .a { font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 25px; letter-spacing: .06em; }
+    #pw-sc .b { font-family: "JetBrains Mono", monospace; font-size: 20px; letter-spacing: .12em; margin-top: 4px; }
+    #pw-knob-track { position: absolute; right: 16px; top: 28px; width: 56px; height: 30px; border-radius: 15px; background: #111; }
+    #pw-knob { position: absolute; left: 4px; top: 4px; width: 22px; height: 22px; border-radius: 50%; background: #f59e0b; }
+    #pw-ticker { position: absolute; left: 0; top: 262px; width: 2560px; height: 54px; background: #f59e0b; overflow: hidden; transform-origin: 100% 50%; }
+    #pw-ticker-text { position: absolute; left: 0; top: 0; white-space: nowrap; font-family: "JetBrains Mono", monospace;
+      font-weight: 800; font-size: 28px; line-height: 54px; color: #111; letter-spacing: .08em; }
+    .pw-chip { position: absolute; left: 1043px; top: 708px; width: 131px; height: 54px; border-radius: 4px;
+      background: #2e214b; border: 2px solid #a855f7; overflow: hidden; }
+    .pw-chip span { position: absolute; inset: 0; text-align: center; line-height: 50px; font-family: "JetBrains Mono", monospace;
+      font-weight: 700; font-size: 19px; color: #fff; }
+    .pw-num { position: absolute; top: 158px; width: 80px; height: 76px; background: #0a0e16; overflow: hidden; }
+    .pw-num span { position: absolute; left: 0; top: 0; width: 80px; height: 76px; line-height: 76px; text-align: center;
+      font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 58px; }
+    #pw-amber { position: absolute; inset: 0; box-shadow: inset 0 0 160px 20px rgba(245,158,11,.45); pointer-events: none; }
+    #pw-label { position: absolute; left: 84px; top: 34px; font-weight: 900; font-size: 46px; color: #fff; letter-spacing: -0.03em; }
+    #pw-label b { color: #ff1e00; }
+    .pw-cap { position: absolute; right: 84px; top: 44px; font-family: "JetBrains Mono", monospace; font-size: 24px; color: #cbd5e1;
+      border-left: 3px solid #ff1e00; padding-left: 16px; }
+    #pw-sc, #pw-ticker, #pw-amber, .pw-cap, #pw-ripple, #pw-cursor, #pw-c2, #pw-c3 { opacity: 0; }
+    #pw-cursor { position: absolute; left: 0; top: 0; width: 46px; height: 64px; z-index: 50; }
+    #pw-ripple { position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; border: 3px solid #ff1e00; z-index: 49; }
+  </style>
+  <div id="root" data-composition-id="pitwall" data-width="1920" data-height="1080">
+    <div id="pw-grid"></div>
+    <div id="pw-stage" data-layout-allow-overflow>
+      <div id="pw-label" class="clip" data-start="0" data-duration="11.6"><b>PIT WALL</b> — owner dashboard</div>
+      <div id="pw-win">
+        <div id="pw-chrome">
+          <div class="pw-dot" style="left:16px;background:#ff5f56"></div>
+          <div class="pw-dot" style="left:38px;background:#ffbd2e"></div>
+          <div class="pw-dot" style="left:60px;background:#27c93f"></div>
+          <div id="pw-url">caterking · /admin · Pit Wall</div>
+        </div>
+        <div id="pw-content">
+          <div id="pw-cam">
+            <img src="assets/pitwall.png" alt="Pit Wall dashboard" />
+            <div id="pw-ticker" data-layout-ignore class="clip" data-start="0" data-duration="11.6">
+              <div id="pw-ticker-text">SAFETY CAR DEPLOYED: Pacing the kitchen to guarantee 100% perfection on every dish  ///  SAFETY CAR DEPLOYED: Pacing the kitchen to guarantee 100% perfection on every dish  ///  SAFETY CAR DEPLOYED: Pacing the kitchen to guarantee 100% perfection on every dish  ///</div>
+            </div>
+            <div id="pw-sc" data-layout-ignore class="clip" data-start="0" data-duration="11.6">
+              <div class="a">SAFETY CAR</div><div class="b">DEPLOYED · ON</div>
+              <div id="pw-knob-track"><div id="pw-knob"></div></div>
+            </div>
+            <div id="pw-chip" data-layout-ignore class="pw-chip clip" data-start="0" data-duration="11.6">
+              <span id="pw-c1">Box Box</span><span id="pw-c2">Flying Lap</span><span id="pw-c3">Chequered</span>
+            </div>
+            <div class="pw-num clip" id="pw-nbb" data-layout-ignore data-start="0" data-duration="11.6" style="left:1562px">
+              <span id="pw-nbb-a" data-layout-ignore style="color:#a855f7">02</span><span id="pw-nbb-b" data-layout-ignore style="color:#a855f7">01</span></div>
+            <div class="pw-num clip" id="pw-nfl" data-layout-ignore data-start="0" data-duration="11.6" style="left:1063px">
+              <span id="pw-nfl-a" data-layout-ignore style="color:#3b82f6">01</span><span id="pw-nfl-b" data-layout-ignore style="color:#3b82f6">02</span></div>
+            <div class="pw-num clip" id="pw-ncf" data-layout-ignore data-start="0" data-duration="11.6" style="left:567px">
+              <span id="pw-ncf-a" data-layout-ignore style="color:#22c55e">04</span><span id="pw-ncf-b" data-layout-ignore style="color:#22c55e">05</span></div>
+          </div>
+        </div>
+        <div id="pw-amber" class="clip" data-start="0" data-duration="11.6"></div>
+      </div>
+    </div>
+    <div class="pw-cap clip" id="pw-cap1" data-start="0" data-duration="11.6">Safety Car · one switch for the kitchen</div>
+    <div class="pw-cap clip" id="pw-cap2" data-start="0" data-duration="11.6">Advance ▸ Box Box → Flying Lap</div>
+    <div class="pw-cap clip" id="pw-cap3" data-start="0" data-duration="11.6">Chequered Flag · customer rates the order</div>
+    <div id="pw-ripple" class="clip" data-start="0" data-duration="11.6"></div>
+    <svg id="pw-cursor" class="clip" data-start="0" data-duration="11.6" viewBox="0 0 23 32">
+      <path d="M1 1 L1 25 L7 19.5 L11 29 L15 27.3 L11 18 L19 18 Z" fill="#fff" stroke="#0b0f17" stroke-width="1.6" stroke-linejoin="round" />
+    </svg>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    // Content origin (80,154) in the frame; Pit Wall image is 2560 px wide.
+    const C0 = { s: 0.6875, x: 0, y: 0 };
+    const C1 = { s: 1.2, x: -839.6, y: -145 };   // tiles + P1 row
+    const P = (nx, ny, c) => ({ x: 80 + c.x + nx * c.s, y: 154 + c.y + ny * c.s });
+    const cam = (c, t, d, ease) => tl.to("#pw-cam", { scale: c.s, x: c.x, y: c.y, duration: d, ease: ease || "power2.inOut" }, t);
+    const move = (p, t, d) => tl.to("#pw-cursor", { x: p.x, y: p.y, duration: d, ease: "power3.inOut" }, t);
+    const click = (t, p) => {
+      tl.to("#pw-cursor", { scale: 0.82, duration: 0.07, ease: "power2.in", transformOrigin: "0 0" }, t)
+        .to("#pw-cursor", { scale: 1, duration: 0.12, ease: "power2.out" }, t + 0.07);
+      tl.set("#pw-ripple", { x: p.x, y: p.y }, t);
+      tl.fromTo("#pw-ripple", { scale: 0.3, opacity: 0.9 }, { scale: 1.6, opacity: 0, duration: 0.35, ease: "expo.out" }, t);
+    };
+    const roll = (id, t) => {
+      tl.fromTo(id + "-a", { y: 0 }, { y: -76, duration: 0.3, ease: "power3.inOut" }, t);
+      tl.fromTo(id + "-b", { y: 76 }, { y: 0, duration: 0.3, ease: "power3.inOut" }, t);
+    };
+    const cap = (show, hide, t) => {
+      if (hide) tl.to(hide, { opacity: 0, filter: "blur(6px)", duration: 0.15 }, t - 0.15);
+      tl.fromTo(show, { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.2, ease: "power4.out" }, t);
+    };
+
+    tl.set("#pw-cam", { scale: C0.s, x: 0, y: 0, transformOrigin: "0 0" }, 0);
+    tl.set(["#pw-nbb", "#pw-nfl", "#pw-ncf"], { opacity: 1 }, 0);
+    tl.set("#pw-cursor", { x: 1900, y: 1150, scale: 1 }, 0);
+
+    // whip in from the right
+    tl.fromTo("#pw-stage", { x: 1500 }, { x: 0, duration: 0.5, ease: "expo.out" }, 0);
+
+    // Safety Car switch
+    const sc = P(384, 54, C0);
+    tl.fromTo("#pw-cursor", { opacity: 0 }, { opacity: 1, duration: 0.1 }, 0.9);
+    move(sc, 0.9, 0.8);
+    click(1.9, sc);
+    tl.fromTo("#pw-sc", { opacity: 0 }, { opacity: 1, duration: 0.12 }, 1.92);
+    tl.fromTo("#pw-knob", { x: 0 }, { x: 26, duration: 0.2, ease: "power3.out" }, 1.95);
+    tl.fromTo("#pw-ticker", { opacity: 1, scaleX: 0 }, { opacity: 1, scaleX: 1, duration: 0.45, ease: "expo.out" }, 2.05);
+    tl.fromTo("#pw-ticker-text", { x: 0 }, { x: -1500, duration: 9.5, ease: "none" }, 2.05);
+    tl.fromTo("#pw-amber", { opacity: 0 }, { opacity: 1, duration: 0.15 }, 1.95)
+      .to("#pw-amber", { opacity: 0.25, duration: 0.8, ease: "power2.out" }, 2.2);
+    cap("#pw-cap1", null, 2.1);
+
+    // punch in on the timing tower: advance P1 to Flying Lap
+    cam(C1, 3.3, 0.6);
+    const adv = P(975, 735, C1);
+    move(adv, 3.4, 0.9);
+    click(4.6, adv);
+    tl.to("#pw-chip", { backgroundColor: "#10203f", borderColor: "#3b82f6", duration: 0.2 }, 4.62);
+    tl.to("#pw-c1", { opacity: 0, y: -20, duration: 0.15 }, 4.62);
+    tl.fromTo("#pw-c2", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.2, ease: "power3.out" }, 4.68);
+    roll("#pw-nbb", 4.9);
+    roll("#pw-nfl", 5.0);
+    cap("#pw-cap2", "#pw-cap1", 4.75);
+
+    // pull back, advance again to the Chequered Flag
+    cam(C0, 6.2, 0.6);
+    const adv0 = P(975, 735, C0);
+    move(adv0, 6.4, 0.8);
+    click(7.5, adv0);
+    tl.to("#pw-chip", { backgroundColor: "#0f2a1c", borderColor: "#22c55e", duration: 0.2 }, 7.52);
+    tl.to("#pw-c2", { opacity: 0, y: -20, duration: 0.15 }, 7.52);
+    tl.fromTo("#pw-c3", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.2, ease: "power3.out" }, 7.58);
+    roll("#pw-ncf", 7.8);
+    cap("#pw-cap3", "#pw-cap2", 7.65);
+
+    // hold, then zoom through the green chip into the finish
+    tl.to("#pw-cursor", { x: 1960, y: 1120, duration: 0.7, ease: "power3.in" }, 9.4);
+    const z = P(1108, 735, C0);
+    tl.to("#pw-stage", { scale: 9, x: -8 * z.x, y: -8 * z.y, duration: 0.6, ease: "power3.in", transformOrigin: "0 0" }, 10.9);
+    window.__timelines["pitwall"] = tl;
+  </script>
+</template>

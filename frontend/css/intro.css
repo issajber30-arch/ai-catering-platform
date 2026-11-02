@@ -1,0 +1,49 @@
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); }
+#ck-intro { display: none; }
+.ck-intro-on #ck-intro {
+  position: fixed; inset: 0; z-index: 1000; display: grid; place-content: center; gap: 40px;
+  background: radial-gradient(120% 80% at 50% 40%, #1d1d28 0%, #15151E 45%, #0B0F17 100%);
+  animation: ck-out 0.35s var(--ease-out) 2.15s forwards;
+}
+.ck-intro-skip #ck-intro { animation: ck-out-fast 0.2s var(--ease-out) forwards; }
+.ck-intro-off #ck-intro { display: none; }
+
+/* Five start lights: on one by one, then all out ("lights out and away we go"). */
+.ck-lights { display: flex; gap: 14px; justify-content: center; animation: ck-lights-away 0.3s var(--ease-out) 1.3s forwards; }
+@keyframes ck-lights-away { to { opacity: 0; transform: translateY(-12px); } }
+.ck-lights i { width: 26px; height: 26px; border-radius: 50%; background: #2a0b08; border: 2px solid #050608;
+  animation: ck-light-on 0.06s linear forwards, ck-light-off 0.06s linear 1.1s forwards; }
+.ck-lights i:nth-child(1) { animation-delay: 0.15s, 1.1s; } .ck-lights i:nth-child(2) { animation-delay: 0.3s, 1.1s; }
+.ck-lights i:nth-child(3) { animation-delay: 0.45s, 1.1s; } .ck-lights i:nth-child(4) { animation-delay: 0.6s, 1.1s; }
+.ck-lights i:nth-child(5) { animation-delay: 0.75s, 1.1s; }
+@keyframes ck-light-on { to { background: #FF1E00; box-shadow: 0 0 22px 4px rgb(255 30 0 / 0.55); } }
+@keyframes ck-light-off { to { background: #2a0b08; box-shadow: none; } }
+
+.ck-logo { width: min(78vw, 560px); height: auto; overflow: visible; }
+.ck-crown { stroke-dasharray: 1; stroke-dashoffset: 1; animation: ck-draw 0.55s var(--ease-in-out) 1.15s forwards; }
+.ck-crown-fill { opacity: 0; animation: ck-fade 0.3s var(--ease-out) 1.6s forwards; }
+.ck-band { opacity: 0; transform: translateY(6px); animation: ck-rise 0.35s var(--ease-out) 1.55s forwards; }
+.ck-streaks line { opacity: 0; transform: translateX(-60px); animation: ck-streak 0.45s var(--ease-out) 1.15s forwards; }
+.ck-streaks line:nth-child(2) { animation-delay: 1.2s; } .ck-streaks line:nth-child(3) { animation-delay: 1.25s; }
+.ck-word { clip-path: inset(0 100% 0 0); animation: ck-wipe 0.45s var(--ease-out) 1.7s forwards; }
+.ck-tag { text-align: center; font: 600 13px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.35em;
+  color: #94a3b8; opacity: 0; animation: ck-fade 0.3s var(--ease-out) 1.9s forwards; }
+.ck-skip { position: fixed; inset-block-end: 24px; inset-inline-end: 24px; font: 500 12px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.2em; color: #64748b; }
+.ck-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+@keyframes ck-draw { to { stroke-dashoffset: 0; } }
+@keyframes ck-fade { to { opacity: 1; } }
+@keyframes ck-rise { to { opacity: 1; transform: none; } }
+@keyframes ck-streak { 0% { opacity: 0; transform: translateX(-60px); } 60% { opacity: 1; } 100% { opacity: 0.85; transform: none; } }
+@keyframes ck-wipe { to { clip-path: inset(0 0 0 0); } }
+@keyframes ck-out { to { opacity: 0; transform: scale(1.03); visibility: hidden; } }
+@keyframes ck-out-fast { to { opacity: 0; visibility: hidden; } }
+
+/* Reduced motion: no lights, no movement; the finished logo shows briefly and fades. */
+@media (prefers-reduced-motion: reduce) {
+  .ck-lights { display: none; }
+  .ck-crown, .ck-crown-fill, .ck-band, .ck-streaks line, .ck-word, .ck-tag {
+    animation: none; opacity: 1; transform: none; clip-path: none; stroke-dashoffset: 0; }
+  .ck-intro-on #ck-intro { animation: ck-out-fast 0.3s ease 0.9s forwards; }
+}

@@ -2,6 +2,9 @@ import psycopg
 
 from app.core.config import get_settings
 from app.migrate import migrate
+from tests.conftest import postgres_only
+
+pytestmark = postgres_only
 
 
 def test_migrate_applies_each_file_once(tmp_path, engine):

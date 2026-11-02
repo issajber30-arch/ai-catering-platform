@@ -1,5 +1,7 @@
 # Preliminary Database Schema (PostgreSQL / Supabase)
 
+Diagram of how the tables connect: [database/ERD.md](database/ERD.md).
+
 Status: **Draft v0.1**. Catalog, logistics and availability tables are migrated (Phase 2) with per-language `name_he/ar/en` and `description_he/ar/en` columns on categories and dishes; orders and AI tables are still planned.
 
 Conventions **[RECOMMENDATION]**: `uuid` PKs (`gen_random_uuid()`), `timestamptz` `created_at`/`updated_at`, money as `numeric(10,2)`, enums as Postgres enum types, snake_case, RLS enabled on every table.
@@ -157,3 +159,5 @@ Proposals may only execute while order is `draft`.
 Phase 3 also adds `orders.access_token_hash` (sha256 of the guest token), `orders.time_slot_id`, `orders.currency`; `customers` has no `auth_user_id` yet (guest checkout, #1). `requested_at` is stored in `BUSINESS_TIMEZONE` (default Asia/Jerusalem).
 
 Phase 3.1: `business_settings` (single row, `id boolean PK CHECK (id)`): lead time, edit cutoff hours (`edit_cutoff_hours`, default 4, 0-168), food minimum, delivery base/per-km/max-km, kitchen address + lat/lon. `orders` adds `delivery_km`, `delivery_lat`, `delivery_lon`, `delivery_fee_estimated`; the zone requirement is replaced by `orders_delivery_needs_address`. `geocode_cache` (`address_norm` PK, lat, lon, found) caches Nominatim answers, including not-found; lookup failures are never cached.
+
+F1 stages: `order_status` adds `in_kitchen`, `out_for_delivery`, `ready_for_pickup`, `delivered`; `orders` adds `kitchen_at`, `dispatched_at`, `delivered_at`. `business_settings.safety_car` boolean (default false). `order_ratings` (`order_id` PK/FK cascade, `stars` 1-5, `comment` ≤500, `created_at`) holds one customer rating per delivered order; RLS on, no policies.

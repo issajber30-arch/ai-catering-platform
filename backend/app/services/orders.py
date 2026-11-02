@@ -12,7 +12,15 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models.catalog import Dish, DishCategory, KashrutClass
 from app.models.logistics import FulfillmentType, TimeSlot
-from app.models.orders import Customer, Event, Order, OrderItem, OrderStatus, QuantityRule
+from app.models.orders import (
+    Customer,
+    Event,
+    Order,
+    OrderItem,
+    OrderRating,
+    OrderStatus,
+    QuantityRule,
+)
 from app.repositories import catalog as crepo
 from app.repositories import logistics as lrepo
 from app.repositories import orders as repo
@@ -26,6 +34,7 @@ from app.schemas.orders import (
     OrderSummary,
     PricingOut,
     QuantityRuleIn,
+    RatingIn,
     RecommendationOut,
 )
 from app.services import geo, pricing, quantities
@@ -206,7 +215,8 @@ def order_out(order: Order, lang: str = "he") -> OrderOut:
         submitted_at=order.submitted_at, first_submitted_at=order.first_submitted_at,
         reopened_at=order.reopened_at, decided_at=order.decided_at,
         decision_note=order.decision_note, cancelled_at=order.cancelled_at,
-        cancel_note=order.cancel_note,
+        cancel_note=order.cancel_note, kitchen_at=order.kitchen_at,
+        dispatched_at=order.dispatched_at, delivered_at=order.delivered_at, rating=order.rating,
     )  # fmt: skip
 
 
@@ -330,7 +340,7 @@ def _recommendations(db: Session, order: Order, extra=()) -> list[Recommendation
     return [RecommendationOut(**vars(r), preview=r.dish_id in previewed) for r in found]
 
 
-def submit(db: Session, order_id, token, version, lang) -> OrderOut:
+def submit(db: Session, order_id, token, version, lang, sms_opt_in: bool = False) -> OrderOut:
     order = _draft(db, order_id, token, version)
     if not order.items:
         raise AppError(422, "Order has no items")
@@ -361,6 +371,7 @@ def submit(db: Session, order_id, token, version, lang) -> OrderOut:
         priced.total,
     )  # fmt: skip
     order.currency = priced.currency
+    order.sms_opt_in, order.lang = sms_opt_in, lang
     order.status = OrderStatus.pending_approval
     order.submitted_at = dt.datetime.now(dt.UTC)
     order.first_submitted_at = order.first_submitted_at or order.submitted_at
@@ -398,7 +409,9 @@ def list_orders(db: Session, status: OrderStatus | None) -> list[OrderSummary]:
             id=o.id, status=o.status, customer_name=o.customer.full_name,
             event_type=o.event.event_type, event_date=o.event.event_date,
             guests=o.event.adults + o.event.children, total=o.total, currency=o.currency,
-            submitted_at=o.submitted_at, created_at=o.created_at,
+            submitted_at=o.submitted_at, created_at=o.created_at, version=o.version,
+            fulfillment_type=o.fulfillment_type, requested_at=o.requested_at,
+            delivered_at=o.delivered_at,
         )
         for o in repo.list_orders(db, status)
     ]  # fmt: skip
@@ -439,6 +452,37 @@ def cancel(db: Session, order_id, note: str) -> OrderOut:
     order.cancelled_at = dt.datetime.now(dt.UTC)
     order.version += 1
     return order_out(_save(db, order))
+
+
+def advance(db: Session, order_id, version: int) -> OrderOut:
+    order = repo.get_order(db, order_id, lock=True)
+    if order is None:
+        raise _not_found()
+    if order.version != version:
+        raise AppError(409, "Order was changed elsewhere", code="order_version_conflict")
+    S, now = OrderStatus, dt.datetime.now(dt.UTC)
+    if order.status == S.approved:
+        order.status, order.kitchen_at = S.in_kitchen, now
+    elif order.status == S.in_kitchen:
+        delivery = order.fulfillment_type == FulfillmentType.delivery
+        order.status = S.out_for_delivery if delivery else S.ready_for_pickup
+        order.dispatched_at = now
+    elif order.status in (S.out_for_delivery, S.ready_for_pickup):
+        order.status, order.delivered_at = S.delivered, now
+    else:
+        raise AppError(409, "Order cannot be advanced from its status", code="invalid_transition")
+    order.version += 1
+    return order_out(_save(db, order))
+
+
+def rate(db: Session, order_id, token, body: RatingIn, lang: str) -> OrderOut:
+    order = customer_order(db, order_id, token, lock=True)
+    if order.status != OrderStatus.delivered:
+        raise AppError(409, "Only delivered orders can be rated", code="invalid_transition")
+    if order.rating is not None:
+        raise AppError(409, "Order was already rated", code="already_rated")
+    order.rating = OrderRating(**body.model_dump())
+    return order_out(_save(db, order), lang)
 
 
 def put_rule(db: Session, category_id, body: QuantityRuleIn) -> QuantityRule:

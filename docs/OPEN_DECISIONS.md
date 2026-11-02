@@ -19,6 +19,7 @@ When a decision is made, record it here and move the row out of the table above.
 |---|---|---|---|
 | 2026-10-30 | 7 (partial) | Owner-only cancel of orders awaiting approval or approved, from the admin; a reason is required and shown to the customer. Customers cannot cancel themselves. Customers may edit until 4 hours before the event (configurable, `edit_cutoff_hours`); an approved order goes back to the owner for approval. Other deadlines still open | Owner |
 | 2026-10-29 | 12 | Interface languages: Arabic, Hebrew and English; RTL for ar/he | Owner |
+| 2026-10-29 | 12 | (Upstream, from the merged yumm.ai design PR #24) Interface language is **Hebrew only, RTL**; AI responses in Hebrew. Superseded in this fork by the he/ar/en decision above | Upstream project owner (chat) |
 | 2026-10-29 | 13 | No notifications; quote requests are viewed on the admin page | Owner |
 | 2026-10-29 | 17 | ILS (₪) | Owner |
 | 2026-10-29 | 1 | Guest checkout, no accounts: customer leaves name + email or phone and gets a private link (token in the URL fragment). Provisional; can move to Supabase Auth later | Owner |
@@ -37,3 +38,11 @@ When a decision is made, record it here and move the row out of the table above.
 | 2026-10-30 | 9 | Kashrut: CaterKing is **not certified**; the site shows only meat/dairy/pareve per dish and makes no certification claim | Owner |
 | 2026-10-30 | 7 | Customers may change a submitted or approved order until **4 hours before the event** (configurable in admin Settings); the change sends it back to the owner for approval with prices recalculated | Owner |
 | 2026-10-30 | — | Launch: production on Render Starter (`caterking`, from `main`) with a separate Supabase project `caterking-prod`; go live after the Editorial redesign and the real menu | Owner |
+| 2026-11-02 | — | F1 "Pit Wall" redesign approved for the customer app and the owner dashboard | Owner |
+| 2026-11-02 | — | Fulfilment stages `in_kitchen` → `out_for_delivery` (delivery) / `ready_for_pickup` (pickup) → `delivered`, advanced by the owner (Advance) | Owner |
+| 2026-11-02 | — | Safety Car: a manual owner switch that shows customers a notice while on | Owner |
+| 2026-11-02 | — | Driver of the Day: the customer rates the order 1 to 5 stars with an optional comment, once, after delivery | Owner |
+| 2026-11-02 | 13 | SMS/WhatsApp through Twilio, opt-in per order, for two messages only (Flying Lap and Safety Car); off until the Twilio keys are set. Supersedes "no notifications" for these two messages | Owner |
+| 2026-11-02 | 20 | Crown logo, and the lights-out intro plays once per visit | Owner |
+| 2026-11-02 | 20 | Fonts Plus Jakarta Sans, JetBrains Mono, Heebo and Noto Kufi Arabic, self-hosted | Owner |
+| 2026-11-02 | — | The F1 opening page replaces the yumm.ai page at `/` | Owner |

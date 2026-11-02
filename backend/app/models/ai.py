@@ -4,10 +4,9 @@ import uuid
 from decimal import Decimal
 
 from sqlalchemy import FetchedValue, ForeignKey, Numeric, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base
+from app.core.db import Base, Json
 from app.models.catalog import pg_enum
 
 
@@ -32,7 +31,7 @@ class AiMessage(Base):
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_conversations.id"))
     seq: Mapped[int] = mapped_column(server_default=FetchedValue())  # identity, DB-assigned
     role: Mapped[str] = mapped_column(Text)
-    content: Mapped[dict | list] = mapped_column(JSONB)
+    content: Mapped[dict | list] = mapped_column(Json)
     input_tokens: Mapped[int | None]
     output_tokens: Mapped[int | None]
     cache_read_tokens: Mapped[int | None]
@@ -47,8 +46,8 @@ class ChangeProposal(Base):
     order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orders.id"))
     conversation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ai_conversations.id"))
     base_order_version: Mapped[int]
-    changes: Mapped[list] = mapped_column(JSONB)
-    diff: Mapped[list] = mapped_column(JSONB)
+    changes: Mapped[list] = mapped_column(Json)
+    diff: Mapped[list] = mapped_column(Json)
     rationale: Mapped[str | None] = mapped_column(Text)
     price_before: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     price_after: Mapped[Decimal] = mapped_column(Numeric(10, 2))

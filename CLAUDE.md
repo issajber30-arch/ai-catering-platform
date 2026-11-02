@@ -21,6 +21,7 @@ uv run pytest tests/test_security.py::test_admin_routes_reject_anonymous   # sin
 psql catering_dev -f ../database/migrations/<file>.sql                    # apply a migration
 ```
 
+- **SQLite** (local dev/tests only): a `sqlite:///…` `DATABASE_URL`/`TEST_DATABASE_URL` works. `core/db.make_engine` registers `gen_random_uuid()`, `now()` and `next_seq()` on each connection; `migrate.create_sqlite_schema` builds tables from the models and seeds them. New Postgres-only column types need a `with_variant`, and new SQL seed rows go in `migrate.py` too. Tests that need Postgres use `postgres_only` from `conftest.py`. CI stays on Postgres.
 - The test fixture (`tests/conftest.py`) **drops the `public` schema** of `TEST_DATABASE_URL` and re-applies every file in `database/migrations/` in name order. It refuses any database whose name doesn't end in `_test`.
 - Each test truncates the tables named in `TABLES` in `conftest.py`. **Add every new table there** when you add a migration, or data leaks between tests.
 - Settings load from `.env` in `backend/` or the repo root (`core/config.py`), so pytest picks up `TEST_DATABASE_URL` from there too.

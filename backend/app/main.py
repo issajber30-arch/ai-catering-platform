@@ -34,8 +34,8 @@ async def limit_body_size(request: Request, call_next):
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; script-src 'self'; img-src 'self' data: https:; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co; "
+        "style-src 'self' 'unsafe-inline'; "
+        "font-src 'self'; connect-src 'self' https://*.supabase.co; "
         "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
     ),
     "X-Content-Type-Options": "nosniff",

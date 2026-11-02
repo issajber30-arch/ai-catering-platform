@@ -4,7 +4,9 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import text, update
+
+from app.models.orders import Order
 
 from .test_security import error_code
 
@@ -140,8 +142,7 @@ def test_delivery_fee_legacy_zone(client, make_dish, order, zone, slot, admin, d
         headers=hdr(order),
     ).json()
     db.execute(
-        text("UPDATE orders SET delivery_fee_estimated = false, delivery_zone_id = :z"),
-        {"z": zone["id"]},
+        update(Order).values(delivery_fee_estimated=False, delivery_zone_id=uuid.UUID(zone["id"]))
     )
     db.commit()
     done = put_item(client, patched, make_dish(unit_price="100.00"), "1").json()
@@ -644,6 +645,7 @@ def test_delivery_quote_validation(client):
 def test_public_settings(client):
     assert client.get("/api/public-settings").json() == {
         "lead_time_days": 7, "edit_cutoff_hours": 4, "min_food_total": "0.00", "max_km": "40.00",
+        "safety_car": False,
     }  # fmt: skip
 
 
@@ -830,8 +832,7 @@ def test_reopen_refused(client, admin, make_dish, body, db):
 
     def move(hours):
         t = dt.datetime.now(dt.UTC) + dt.timedelta(hours=hours)
-        sql = text("UPDATE orders SET requested_at = :t WHERE id = :i")
-        db.execute(sql, {"t": t, "i": late["id"]})
+        db.execute(update(Order).where(Order.id == uuid.UUID(late["id"])).values(requested_at=t))
         db.commit()
 
     move(3)
@@ -854,7 +855,7 @@ def test_reopen_date_rules(client, make_dish, body, db):
     near = TODAY + dt.timedelta(days=3)  # the event is now 3 days out
     db.execute(text("UPDATE events SET event_date = :d"), {"d": near})
     at = dt.datetime.combine(near, dt.time(10), tzinfo=ZoneInfo("Asia/Jerusalem"))
-    db.execute(text("UPDATE orders SET requested_at = :t"), {"t": at})
+    db.execute(update(Order).values(requested_at=at))
     db.commit()
     d = reopen(client, o, o["version"]).json()
     assert submit(client, d, d["version"]).status_code == 200  # original date stays editable

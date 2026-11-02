@@ -2,6 +2,19 @@
 
 Status: **Draft v0.1**. High-fidelity prototypes (Claude Artifacts) come in the UI phase; brand, colors, and language are **[OPEN #12, #20]**.
 
+## 0. Implementation status
+
+| Area | Status |
+|---|---|
+| Language / direction | Hebrew only, RTL (decision #12, see `OPEN_DECISIONS.md`) |
+| Customer C1-C5 | Built in `frontend/customer/` + `frontend/js/customer/`, running on a **mock backend** (`js/customer/mock-backend.js`) that mirrors `API_CONTRACTS.md` shapes |
+| Admin A1-A5 | Not built yet (placeholder page) |
+| Brand (#20) | Still open. Colors are tokens in `css/base.css`; the current forest-green accent is a placeholder |
+
+Known gaps against the spec: the date field is a native `<input type="date">` (blocked dates are validated and listed, not greyed out); quantity formulas, slots, zones, lead time and the allergen disclaimer are placeholders pending #3, #5, #19 and #8; dish images show only when the API supplies `image` (no photos until admin upload exists).
+
+Preview without the backend: `python -m http.server 8000 --directory frontend`, then open `/customer/`. Add `?demo=pending|approved|rejected` to jump straight to the status screen.
+
 ## 1. Principles
 
 - Mobile-first; breakpoints 640 / 1024 px **[RECOMMENDATION]**.

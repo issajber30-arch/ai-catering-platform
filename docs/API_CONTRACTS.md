@@ -29,7 +29,7 @@ Common codes: `conflict` (409), `file_too_large` (413), `unsupported_media_type`
 
 ## Customer orders (Phase 3, implemented)
 
-Guest checkout (decision #1). `POST /api/orders` returns `access_token` once; every other customer route needs header `X-Order-Token`. A missing/wrong token and an unknown id both return 404. Customer routes accept `?lang=he|ar|en`. Public helpers: `GET /api/catalog/event-types`, `GET /api/public-settings` → `{lead_time_days, min_food_total, max_km}`, `POST /api/delivery-quote {address}` (1–500 chars; POST so the address stays out of URLs and logs) → `{found, km, fee, max_km, too_far}`. `GET /api/delivery-zones` remains for legacy zone orders only.
+Guest checkout (decision #1). `POST /api/orders` returns `access_token` once; every other customer route needs header `X-Order-Token`. A missing/wrong token and an unknown id both return 404. Customer routes accept `?lang=he|ar|en`. Public helpers: `GET /api/catalog/event-types`, `GET /api/public-settings` → `{lead_time_days, edit_cutoff_hours, min_food_total, max_km, safety_car}`, `POST /api/delivery-quote {address}` (1–500 chars; POST so the address stays out of URLs and logs) → `{found, km, fee, max_km, too_far}`. `GET /api/delivery-zones` remains for legacy zone orders only.
 
 Phase 3.1 rules (server-enforced): event date ≥ today + `lead_time_days` (422 "Events need at least N days' notice"); submit needs food subtotal ≥ `min_food_total` (422); delivery fee = base + per_km × straight-line km from the kitchen, max `delivery_max_km` (422 "choose pickup"); address not found → `delivery_fee: null`, `delivery_fee_estimated: true`, total excludes delivery. `OrderOut` adds `warnings` (`"mixes_meat_dairy"`), `delivery_km`, `delivery_fee_estimated`. Every response carries CSP, `X-Content-Type-Options`, `Referrer-Policy: no-referrer` and `X-Frame-Options: DENY`. `time_slots.weekday`: Monday=0 … Sunday=6, null = any day.
 
@@ -96,6 +96,11 @@ Proposal shape:
 | GET | `/api/admin/quantity-rules` · PUT/DELETE `/api/admin/quantity-rules/{category_id}` `{per_adult, per_child, round_step}` |
 | POST | `/api/admin/orders/{id}/approve` · `/api/admin/orders/{id}/reject` `{note}` |
 | POST | `/api/admin/orders/{id}/cancel` `{note}` (required, 1-1000 chars after trim; 409 `invalid_transition` unless pending_approval or approved) |
+| POST | `/api/admin/orders/{id}/advance` `{version}` (approved → in_kitchen → out_for_delivery or ready_for_pickup → delivered; 409 `order_version_conflict` / `invalid_transition`) |
+| PUT | `/api/admin/safety-car` `{on}` → `{safety_car}` |
+| POST | `/api/orders/{id}/rating` `{stars 1-5, comment ≤500 or null}` (customer token; 409 `invalid_transition` unless delivered, 409 `already_rated`) |
+
+Order responses also carry `kitchen_at`, `dispatched_at`, `delivered_at` and `rating {stars, comment, created_at}` or `null`.
 
 ## Order status transitions
 
@@ -106,5 +111,6 @@ Proposal shape:
 | pending_approval → rejected | `POST /api/admin/orders/{id}/reject` | Owner |
 | pending_approval or approved → draft | `POST /api/orders/{id}/reopen` | Order's customer |
 | pending_approval or approved → cancelled | `POST /api/admin/orders/{id}/cancel` | Owner |
+| approved → in_kitchen → out_for_delivery (delivery) or ready_for_pickup (pickup) → delivered | `POST /api/admin/orders/{id}/advance` | Owner |
 
 Any other transition → `409 invalid_transition`. The AI agent has no tool that triggers these.

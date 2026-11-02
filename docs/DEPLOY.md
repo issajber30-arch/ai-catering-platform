@@ -43,7 +43,7 @@ The service deploys from the **`dev`** branch, so merged PRs go live automatical
 Once the site is up, add your menu, the kitchen address in the admin Settings tab, and serving rules. They're needed for real quotes.
 
 ## Production
-Production is a second Render service, **`caterking`**, defined in `render.yaml`. It deploys from **`main`** on the Starter plan (always on, about $7/month). It has its **own** Supabase project, `caterking-prod` (`vowkkljvaymxzhkllvxl`, Ireland), so real orders never mix with test data.
+Production is a second Render service, **`caterking`**, defined in `render.yaml`. It deploys from **`main`** on the free plan for now (sleeps when idle; upgrade to Starter, about $7/month, for always-on). It has its **own** Supabase project, `caterking-prod` (`vowkkljvaymxzhkllvxl`, Ireland), so real orders never mix with test data.
 
 1. **Release:** merge a PR from `dev` into `main`. Only merge what you've already checked on the dev site.
 2. **Render:** open the Blueprint and click **Sync**. Render proposes the new `caterking` service and asks for its secrets:
@@ -54,3 +54,17 @@ Production is a second Render service, **`caterking`**, defined in `render.yaml`
 3. **Owner login:** in `caterking-prod`, go to Authentication → Users and add your user. Claude then grants it the admin role.
 4. **Menu:** add the real menu, kitchen address, time slots and serving rules in the production admin.
 5. **Check:** run `scripts/smoke_api.sh https://<production-url>`, then place one order and cancel it from the admin.
+
+## SMS / WhatsApp (Twilio)
+Customers who opt in at checkout get two messages: **Flying Lap** (the order is on its way) and **Safety Car**. Sending stays **off** until all of this is done.
+
+1. At https://www.twilio.com create an account and note the **Account SID** and **Auth Token** (Console home).
+2. Buy or register an SMS-capable sender number that can send to Israeli mobile numbers (`+972 5X`). Customer numbers are normalised to Israeli mobiles only.
+3. Optional, for WhatsApp: set up a WhatsApp sender in Twilio (the sandbox works for tests) and note its number.
+4. In the **Render dashboard**, open the service, then **Environment**, and set these four variables (they are `sync: false` in `render.yaml`). Never paste them in chat or commit them:
+   - `TWILIO_ACCOUNT_SID`
+   - `TWILIO_AUTH_TOKEN`
+   - `TWILIO_SMS_FROM`: the sender number, e.g. `+972...`
+   - `TWILIO_WHATSAPP_FROM`: the WhatsApp sender, or leave empty to use SMS only
+5. Save and let Render redeploy.
+6. **Confirm:** open the admin, Settings tab, SMS / WhatsApp box. It should say **מחובר** (connected). **לא מחובר** means the keys are missing or incomplete, and nothing is sent.

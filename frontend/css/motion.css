@@ -1,0 +1,92 @@
+/* yumm.ai motion.
+   Rules: transform and opacity only; each effect marks arrival, feedback or a state change; everything plays once,
+   except a gentle wobble on the assistant's avatar while it is thinking. Content is visible by default, so a
+   missing script or reduced motion never hides anything. Reduced motion removes every effect (see the end). */
+
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes y-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes y-pop {
+  0% { opacity: 0; transform: scale(0.6) rotate(-6deg); }
+  60% { opacity: 1; transform: scale(1.06) rotate(2deg); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes y-wave { 0% { transform: rotate(0); } 20% { transform: rotate(-9deg); } 45% { transform: rotate(7deg); } 70% { transform: rotate(-4deg); } 100% { transform: rotate(0); } }
+@keyframes y-bump { 0% { transform: scale(1); } 35% { transform: scale(1.035); } 100% { transform: scale(1); } }
+@keyframes y-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-9px) rotate(-4deg); } 100% { transform: none; } }
+@keyframes y-wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
+@keyframes y-confetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); } }
+
+/* ---------- confetti (celebration moments only) ---------- */
+.confetti { position: absolute; width: 0; height: 0; z-index: var(--z-toast); pointer-events: none; }
+.confetti i {
+  position: absolute;
+  left: -4px;
+  top: -6px;
+  width: 8px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--c);
+  animation: y-confetti 1s var(--ease-out) forwards;
+}
+
+/* ---------- landing: arrival ---------- */
+.hero h1 { animation: y-rise 0.7s var(--ease-out) both; }
+.hero .lead { animation: y-rise 0.7s 0.1s var(--ease-out) both; }
+.hero-actions { animation: y-rise 0.7s 0.2s var(--ease-out) both; }
+.sun { animation: y-pop 0.8s 0.1s var(--ease-spring) both; }
+.hero-mascot { animation: y-pop 0.9s 0.25s var(--ease-spring) both; transform-origin: 50% 100%; }
+.hero-tomatoes { animation: y-rise 0.6s 0.6s var(--ease-out) both; }
+.hero-confetti { animation: y-pop 0.6s 0.7s var(--ease-spring) both; }
+
+/* The hero art follows the pointer a little (set by landing.js). It moves the image, not the animated wrapper. */
+.hero-art img { transition: transform 0.25s var(--ease-out); transform: translate(calc(var(--px, 0) * var(--depth, 1) * 1px), calc(var(--py, 0) * var(--depth, 1) * 1px)); }
+.hero-mascot img { --depth: 10; }
+.hero-tomatoes img { --depth: -14; }
+.hero-confetti img { --depth: 18; }
+
+/* ---------- landing: scroll reveal (only when scripts ran) ---------- */
+.js .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out); transition-delay: calc(var(--i, 0) * 70ms); }
+.js .reveal.in { opacity: 1; transform: none; }
+
+.top { transition: box-shadow var(--dur-base) var(--ease-out); }
+.top.is-stuck { box-shadow: 0 8px 20px -14px rgb(32 32 32 / 0.5); }
+
+/* ---------- landing: interactions ---------- */
+.occasion-card img { transition: transform 0.35s var(--ease-spring); }
+.occasion-card:hover img, .occasion-card:focus-visible img { transform: rotate(-4deg) scale(1.1); }
+.step-icon { transition: transform 0.4s var(--ease-spring); }
+.step:hover .step-icon { transform: rotate(-6deg) scale(1.06); }
+
+/* ---------- app: step arrival ---------- */
+.app.enter > * { animation: y-rise 0.45s var(--ease-out) both; }
+.app.enter > :nth-child(2) { animation-delay: 0.05s; }
+.app.enter > :nth-child(3) { animation-delay: 0.1s; }
+.app.enter > :nth-child(n + 4) { animation-delay: 0.15s; }
+
+.page-mascot img { transform-origin: 50% 100%; animation: y-wave 1.3s 0.5s var(--ease-out) both; }
+.stepper-item.is-current .stepper-mark { animation: y-pop 0.45s var(--ease-spring) both; }
+
+/* ---------- app: feedback ---------- */
+.occasion-art img { transition: transform 0.3s var(--ease-spring); }
+.occasion:hover .occasion-art img { transform: rotate(-3deg) scale(1.08); }
+.occasion input:checked + .occasion-body .occasion-art { animation: y-hop 0.5s var(--ease-spring); }
+
+.dish-card.bump { animation: y-bump 0.35s var(--ease-out); }
+.side-line.is-new, .ln.is-new { animation: y-rise 0.4s var(--ease-out) both; }
+.msg.is-new { animation: y-rise 0.3s var(--ease-out) both; }
+
+/* Subtle thinking movement, only while the assistant is replying. */
+.mascot-avatar.is-thinking { animation: y-wobble 1.3s ease-in-out infinite; }
+
+.status-hero { position: relative; }
+.status-mascot img { transform-origin: 50% 100%; animation: y-pop 0.8s 0.2s var(--ease-spring) both; }
+
+/* ---------- reduced motion: no effect plays, nothing is hidden ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal { opacity: 1 !important; transform: none !important; }
+  .confetti { display: none; }
+}

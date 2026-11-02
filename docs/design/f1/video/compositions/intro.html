@@ -1,0 +1,49 @@
+<template>
+  <style>
+    #root { position: absolute; inset: 0; background: #0b0f17; overflow: hidden; font-family: Inter, sans-serif; }
+    #in-grid { position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 64px 64px; }
+    #in-gantry { position: absolute; left: 50%; top: 300px; width: 760px; margin-left: -380px; height: 150px;
+      background: #15151e; border: 1px solid rgba(255,255,255,.08); border-radius: 10px;
+      display: flex; justify-content: space-around; align-items: center; }
+    .in-light { width: 96px; height: 96px; border-radius: 50%; background: #2a0b08; border: 3px solid #050608; }
+    #in-title { position: absolute; left: 0; right: 0; top: 520px; text-align: center; color: #fff;
+      font-weight: 900; font-size: 128px; letter-spacing: -0.04em; }
+    #in-tag { position: absolute; left: 0; right: 0; top: 690px; text-align: center;
+      font-family: "JetBrains Mono", monospace; font-size: 30px; letter-spacing: .3em; color: #ff1e00; }
+    #in-sub { position: absolute; left: 0; right: 0; top: 750px; text-align: center;
+      font-family: "JetBrains Mono", monospace; font-size: 30px; letter-spacing: .3em; color: #94a3b8; }
+    #in-title, #in-tag, #in-sub { opacity: 0; }
+  </style>
+  <div id="root" data-composition-id="intro" data-width="1920" data-height="1080">
+    <div id="in-grid"></div>
+    <div id="in-gantry" class="clip" data-start="0" data-duration="3.6">
+      <div class="in-light" id="in-l1"></div><div class="in-light" id="in-l2"></div>
+      <div class="in-light" id="in-l3"></div><div class="in-light" id="in-l4"></div>
+      <div class="in-light" id="in-l5"></div>
+    </div>
+    <h1 id="in-title" class="clip" data-start="0" data-duration="3.6">CATERKING</h1>
+    <div id="in-tag" class="clip" data-start="0" data-duration="3.6">PIT WALL · F1 REDESIGN</div>
+    <div id="in-sub" class="clip" data-start="0" data-duration="3.6">LIGHTS OUT</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    const on = { backgroundColor: "#ff1e00", boxShadow: "0 0 48px 10px rgba(255,30,0,.55)" };
+    const off = { backgroundColor: "#2a0b08", boxShadow: "0 0 0 0 rgba(255,30,0,0)" };
+    tl.fromTo("#in-gantry", { y: -40 }, { y: 0, duration: 0.5, ease: "expo.out" }, 0);
+    ["#in-l1", "#in-l2", "#in-l3", "#in-l4", "#in-l5"].forEach((id, i) => {
+      tl.fromTo(id, off, { ...on, duration: 0.08, ease: "none" }, 0.35 + i * 0.3);
+      tl.to(id, { ...off, duration: 0.06, ease: "none" }, 2.0);
+    });
+    tl.to("#in-gantry", { y: -120, opacity: 0, duration: 0.35, ease: "power3.in" }, 2.1);
+    tl.fromTo("#in-title", { opacity: 0, filter: "blur(14px)", scale: 1.08 },
+      { opacity: 1, filter: "blur(0px)", scale: 1, duration: 0.3, ease: "expo.out" }, 2.12);
+    tl.fromTo("#in-tag", { opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15 }, 2.35);
+    tl.fromTo("#in-sub", { opacity: 0 }, { opacity: 1, duration: 0.2 }, 2.3);
+    // whip out toward the tracker
+    tl.to(["#in-title", "#in-tag", "#in-sub"], { x: -900, opacity: 0, duration: 0.3, ease: "power3.in" }, 3.25);
+    window.__timelines["intro"] = tl;
+  </script>
+</template>

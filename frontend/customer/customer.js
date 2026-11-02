@@ -2,6 +2,7 @@
 // parsed as HTML. Totals shown are always the server's OrderOut values, never computed here.
 import { api } from "/js/api.js";
 import { h, svg } from "/js/dom.js";
+import { beep, chirp, muteToggle } from "/js/radio.js";
 import { S, DIR, LANGS } from "./i18n.js";
 
 const STORE = "catering_order";
@@ -40,10 +41,17 @@ const orderApi = (path = "", options = {}) =>
     ...options, headers: { ...options.headers, "X-Order-Token": st.cred.token },
   });
 
-function say(text, kind = "ok") {
+// kind "flag" = Red Flag panel (system failure, optional retry); "error" = plain note; "load" = start-lights skeleton.
+function say(text, kind = "ok", retry = null) {
   const m = $("message");
-  m.textContent = text;
   m.className = kind;
+  if (kind === "load") {
+    m.replaceChildren(h("div", { class: "lights", role: "status", "aria-label": text }, [1, 2, 3, 4, 5].map((i) => h("span", { style: `--i:${i}` }))));
+  } else if (kind === "flag" && text) {
+    m.replaceChildren(h("div", { class: "redflag", role: "alert" },
+      h("p", { class: "rf-tag" }, "RED FLAG"), h("p", { class: "rf-wit" }, t().redLine), h("p", { class: "rf-msg" }, text),
+      retry && h("button", { type: "button", class: "primary", onclick: () => { say(""); retry(); } }, t().retry)));
+  } else m.textContent = text;
 }
 
 // ---- formatting (display only)
@@ -74,7 +82,8 @@ async function handle(e) {
   } else if (e.code === "invalid_transition") {
     await reloadOrder().catch(() => {});
     say(t().locked, "error");
-  } else say(e.status ? e.message : t().error, "error");
+  } else if (!e.status || e.status >= 500) say(e.status ? e.message : t().error, "flag", () => (st.order ? guard(reloadOrder) : boot()));
+  else say(e.message, "error");
   render();
 }
 async function guard(fn) {
@@ -139,6 +148,8 @@ function stepper(id, label, value, min, max, onchange, step = 1) {
     input,
     h("button", { type: "button", "aria-label": `${t().inc}: ${label}`, disabled: Number(value) >= max, onclick: () => set(Number(value) + step) }, "+"));
 }
+
+const stageHead = (en, sub, id) => h("h2", { class: "stage-h", id }, h("span", { class: "stage-en", dir: "ltr" }, en), h("small", {}, sub));
 
 // ---- C1 event
 function defaultForm() {
@@ -249,7 +260,7 @@ function viewEvent() {
   const text = (key, label, props = {}) => field(`f-${key}`, label, h("input", { id: `f-${key}`, value: f[key], oninput: (ev) => (f[key] = ev.target.value), ...props }), { err: e[key] });
 
   const form = h("form", { class: "ep-card ep-form", novalidate: true, onsubmit: (ev) => { ev.preventDefault(); guard(() => submitEvent(f)); } },
-    h("h2", {}, t().step1),
+    stageHead("Grid Position", t().sub1),
     eventTiles(f),
     field("f-date", t().date, h("input", { id: "f-date", type: "date", min: minDate(), value: f.date, required: true, onchange: (ev) => onDate(f, ev.target.value) }), { err: e.date, hint: leadMsg() }),
     field("f-fulfillment-group", t().fulfillment, h("div", { class: "pills", role: "group", id: "f-fulfillment-group", "aria-label": t().fulfillment },
@@ -313,6 +324,7 @@ async function submitEvent(f) {
   await loadRecs();
   await loadCatalog();
   st.step = "menu";
+  beep();
   render();
 }
 
@@ -408,7 +420,7 @@ function viewMenu() {
     onclick: () => guard(async () => { st.cat = id; await loadDishes(); render(); }) }, label);
   return h("div", { class: "layout" },
     h("section", { "aria-labelledby": "menu-h" },
-      h("h2", { id: "menu-h" }, t().step2),
+      stageHead("Pit Menu", t().sub2, "menu-h"),
       h("div", { class: "chips", role: "group", "aria-label": t().step2 }, chip("all", t().all), st.cats.map((c) => chip(c.id, c.name || c.name_he))),
       st.dishes.length ? courses() : h("p", {}, t().noDishes),
       h("p", { class: "notice", id: "disclaimer" }, t().disclaimer)),
@@ -447,7 +459,7 @@ function summaryCard(withActions) {
     h("details", { class: "sum", open }, h("summary", {}, h("h2", {}, t().summary), h("strong", { class: "sum-total" }, money(o.total, o.currency))), body),
     o.status === "draft" && minGauge(o), warnings(o),
     withActions && h("div", { class: "actions" },
-      h("button", { type: "button", class: "primary", id: "to-review", disabled: !o.items.length || !meetsMin(o), onclick: () => { st.step = "review"; render(); } }, t().review),
+      h("button", { type: "button", class: "primary", id: "to-review", disabled: !o.items.length || !meetsMin(o), onclick: () => { beep(); st.step = "review"; render(); } }, t().review),
       h("button", { type: "button", class: "link", onclick: () => { st.form = null; st.step = "event"; render(); } }, t().edit)));
 }
 
@@ -465,21 +477,92 @@ function eventRecap() {
   return h("p", { class: "hint" }, `${t().event_types[o.event.event_type] ?? o.event.event_type} · ${o.event.event_date} · ${t().guests}: ${o.event.adults + o.event.children}`);
 }
 function viewReview() {
-  return h("div", { class: "ep-form" }, h("h2", {}, t().step3), eventRecap(), summaryCard(false),
-    h("p", {}, t().submitNote),
+  // Unchecked by default; only offered when the customer gave a phone number.
+  const sms = st.order.customer.phone ? h("label", { class: "check" }, h("input", { type: "checkbox", id: "sms-opt" }), " ", t().smsOptIn) : null;
+  return h("div", { class: "ep-form" }, stageHead("Formation Lap", t().sub3), eventRecap(), summaryCard(false),
+    h("p", {}, t().submitNote), sms,
     h("div", { class: "actions" },
       h("button", { type: "button", class: "primary", id: "submit", disabled: st.busy || !st.order.items.length || !meetsMin(st.order),
-        onclick: () => guard(async () => { st.order = await orderApi("/submit", { method: "POST", body: JSON.stringify({ version: st.order.version }) }); render(); }) },
+        onclick: () => guard(async () => { st.order = await orderApi("/submit", { method: "POST", body: JSON.stringify({ version: st.order.version, sms_opt_in: !!sms?.querySelector("input").checked }) }); beep(); render(); }) },
       st.busy ? t().submitting : t().submit),
       h("button", { type: "button", class: "link", onclick: () => { st.step = "menu"; render(); } }, t().back)),
     linkBox());
 }
+const STAGES = { pending_approval: [0, "Grid"], approved: [0, "Grid"], in_kitchen: [1, "Box Box"], out_for_delivery: [2, "Flying Lap"], ready_for_pickup: [2, "Pit Lane"], delivered: [3, "Chequered Flag"] };
+const TRACKED = new Set(Object.keys(STAGES));
+const stamp = (v) => v && new Intl.DateTimeFormat(LOCALES[st.lang], { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Jerusalem" }).format(new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(v) ? v : `${v}Z`));
+function tracker(o) {
+  const [idx, name] = STAGES[o.status];
+  const pickup = o.fulfillment_type === "pickup" || o.status === "ready_for_pickup";
+  const stamps = [o.submitted_at, o.kitchen_at, o.dispatched_at, o.delivered_at];
+  const list = [["Grid", "pending_approval"], ["Box Box", "in_kitchen"], [pickup ? "Pit Lane" : "Flying Lap", pickup ? "ready_for_pickup" : "out_for_delivery"], ["Chequered Flag", "delivered"]];
+  const done = o.status === "delivered" ? 4 : o.status === "approved" ? 1 : idx; // stages before `done` are complete
+  const active = o.status === "delivered" || o.status === "approved" ? -1 : idx;
+  const sec = (i) => (i === 0 ? (idx < 1 ? "wait" : o.status === "in_kitchen" ? "active" : "done")
+    : i === 1 ? (o.status === "delivered" ? "done" : idx === 2 ? "active" : "wait") : o.status === "delivered" ? "done" : "wait");
+  const sectors = [[t().s1, "S1"], [pickup ? t().s2p : t().s2, "S2"], [t().s3, "S3"]];
+  return h("div", { class: "tracker" },
+    h("div", { class: `stage-card ${o.status}`, id: "stage", "data-stage": o.status },
+      h("p", { class: "label loc" }, `${t().status} · #${o.id.slice(0, 8)}`),
+      h("p", { class: "stage-big", dir: "ltr" }, name),
+      h("p", { class: "stage-sub" }, t().stageSub[o.status])),
+    h("div", { class: "sectors", role: "group", "aria-label": t().sectors }, sectors.map(([label, code], i) =>
+      h("div", { class: `sector ${sec(i)}` }, h("span", { class: "label" }, code), h("span", { class: "sector-name" }, label)))),
+    h("ol", { class: "stages", "aria-label": t().stageHeading }, list.map(([en, key], i) => {
+      const state = i < done ? "done" : i === active ? "active" : "wait";
+      return h("li", { class: `stg ${state}`, "aria-current": state === "active" ? "step" : null },
+        h("span", { class: "stg-dot", "aria-hidden": "true" }, state === "done" ? "✓" : String(i + 1)),
+        h("span", { class: "stg-txt" }, h("strong", { dir: "ltr" }, en), h("small", {}, t().stageSub[key]),
+          stamps[i] && h("time", { class: "stg-time", dir: "ltr", datetime: stamps[i] }, stamp(stamps[i]))));
+    })));
+}
+function stars(n) { return h("span", { class: "stars-ro", role: "img", "aria-label": fmt(t().starLabel, { n }) }, [1, 2, 3, 4, 5].map((i) => h("span", { class: i <= n ? "on" : "" }, "★"))); }
+const rt = { stars: 0, comment: "", err: "" };
+function ratingBox(o) {
+  if (o.rating) return h("div", { class: "ep-card dotd done", id: "rating" }, h("p", { class: "label" }, "Driver of the Day"),
+    h("p", { class: "thanks" }, t().thanks), h("p", { class: "hint" }, t().yourRating), stars(o.rating.stars),
+    o.rating.comment && h("p", { class: "rating-comment", dir: "auto" }, o.rating.comment),
+    h("p", { class: "closing", id: "closing" }, t().closing));
+  const pick = (n) => { rt.stars = n; render(); $(`star-${n}`)?.focus(); };
+  const cur = rt.stars || 1;
+  return h("form", { class: "ep-card dotd", id: "rating", onsubmit: (ev) => { ev.preventDefault(); submitRating(); } },
+    h("p", { class: "label" }, "Driver of the Day"), h("p", { class: "hint" }, t().rateHelp),
+    h("div", { class: "stars", role: "radiogroup", "aria-label": t().rateGroup }, [1, 2, 3, 4, 5].map((n) =>
+      h("button", { type: "button", role: "radio", id: `star-${n}`, class: n <= rt.stars ? "star on" : "star", "aria-checked": String(n === rt.stars), "aria-label": fmt(t().starLabel, { n }),
+        tabindex: n === cur ? "0" : "-1", onclick: () => pick(n),
+        onkeydown: (ev) => {
+          const d = { ArrowRight: 1, ArrowLeft: -1, ArrowUp: 1, ArrowDown: -1 }[ev.key]; // star row is always LTR
+          if (d) { ev.preventDefault(); pick(Math.min(5, Math.max(1, n + d))); }
+        } }, "★"))),
+    field("rt-comment", t().rateComment, h("textarea", { id: "rt-comment", maxlength: 500, oninput: (ev) => { rt.comment = ev.target.value; $("rt-count").textContent = `${rt.comment.length}/500`; } }, rt.comment)),
+    h("p", { class: "hint", id: "rt-count", dir: "ltr" }, `${rt.comment.length}/500`),
+    rt.err && h("p", { class: "err", role: "alert" }, rt.err),
+    h("button", { type: "submit", class: "primary", id: "rt-send", disabled: !rt.stars || st.busy }, st.busy ? t().rateSending : t().rateSend));
+}
+function submitRating() {
+  if (!rt.stars) return;
+  guard(async () => {
+    rt.err = "";
+    try {
+      st.order = await orderApi("/rating", { method: "POST", body: JSON.stringify({ stars: rt.stars, comment: rt.comment.trim() || null }) });
+      beep();
+    } catch (e) {
+      if (e.code === "already_rated") await reloadOrder(); // someone rated already: show the saved rating
+      else if (e.status === 404 || e.code === "invalid_transition") throw e;
+      else rt.err = e.status ? e.message : t().error;
+    }
+  });
+}
 function viewStatus() {
   const o = st.order;
+  const note = [o.decision_note, o.cancel_note].filter(Boolean).map((n) => h("p", {}, h("strong", {}, `${t().note}: `), n));
+  const tracked = TRACKED.has(o.status);
   return h("div", { class: "ep-form" },
-    h("div", { class: `status ${o.status}`, id: "status" }, h("h2", {}, t().st[o.status] ?? o.status), h("p", {}, t().stDesc[o.status] ?? ""),
-      o.decision_note && h("p", {}, h("strong", {}, `${t().note}: `), o.decision_note),
-      o.cancel_note && h("p", {}, h("strong", {}, `${t().note}: `), o.cancel_note)),
+    tracked && st.settings.safety_car && o.status !== "delivered" && h("div", { class: "safety", id: "safety-car", role: "status" },
+      h("strong", { dir: "ltr" }, "SAFETY CAR DEPLOYED: Pacing the kitchen to guarantee 100% perfection on every dish"), h("span", {}, t().safetyLine)),
+    tracked ? tracker(o) : h("div", { class: `status ${o.status}`, id: "status" }, h("h2", {}, t().st[o.status] ?? o.status), h("p", {}, t().stDesc[o.status] ?? "")),
+    ...note,
+    o.status === "delivered" && ratingBox(o),
     eventRecap(), summaryCard(false), editBox(o), linkBox(),
     h("button", { type: "button", onclick: () => resetOrder() }, t().newOrder));
 }
@@ -613,7 +696,7 @@ function assistantNodes() {
     h("section", { id: "as-panel", tabindex: "-1", class: `as-panel ep-card${as.open ? " open" : ""}`, "aria-labelledby": "as-h", onkeydown: trapTab,
       ...(phone ? { role: "dialog", "aria-modal": "true" } : { role: "complementary" }) },
       h("div", { class: "as-head" },
-        h("div", {}, h("h2", { id: "as-h" }, t().asTitle), h("p", { class: "hint" }, t().asNote)),
+        h("div", {}, h("p", { class: "label" }, "TEAM RADIO"), h("h2", { id: "as-h", dir: "ltr" }, "Race Engineer"), h("p", { class: "hint" }, t().asNote)),
         h("button", { type: "button", id: "as-close", class: "as-close", "aria-label": t().asClose, onclick: closeAssistant }, "×")),
       !as.items.length && !as.sending && h("p", { class: "hint as-empty" }, t().asEmpty),
       as.log,
@@ -659,6 +742,7 @@ async function decide(pid, action) {
       if (action === "approve") {
         st.order = await orderApi(`/proposals/${pid}/approve`, { method: "POST" });
         e.state = "applied";
+        beep();
         await loadRecs();
       } else {
         await orderApi(`/proposals/${pid}/reject`, { method: "POST" });
@@ -677,11 +761,11 @@ async function decide(pid, action) {
 
 // ---- shell
 function steps(cur) {
-  const names = [["event", t().step1], ["menu", t().step2], ["review", t().step3]];
-  return h("ol", { class: cur === "menu" ? "steps" : "steps narrow" }, names.map(([k, label]) => h("li", k === cur ? { "aria-current": "step" } : {}, label)));
+  const names = [["event", t().sub1], ["menu", t().sub2], ["review", t().sub3]];
+  return h("ol", { class: cur === "menu" ? "steps" : "steps narrow" }, names.map(([k, label], i) => h("li", k === cur ? { "aria-current": "step" } : {}, h("span", { class: "slot-no", dir: "ltr" }, `P${i + 1}`), label)));
 }
 let placeFab = () => {};
-let barObs, lastStep = null, lastTotal = null, lastOrderId = null;
+let barObs, lastStatus = null, lastStep = null, lastTotal = null, lastOrderId = null;
 function render() {
   const focusId = document.activeElement?.id;
   const logTop = as.log.scrollTop;
@@ -689,7 +773,8 @@ function render() {
   document.documentElement.dir = DIR[st.lang];
   document.title = "CaterKing";
   $("langs").replaceChildren(h("div", { class: "pills", role: "group", "aria-label": t().lang },
-    Object.entries(LANGS).map(([k, label]) => h("button", { type: "button", lang: k, "aria-pressed": String(k === st.lang), onclick: () => setLang(k) }, label))));
+    Object.entries(LANGS).map(([k, label]) => h("button", { type: "button", lang: k, "aria-pressed": String(k === st.lang), onclick: () => setLang(k) }, label))),
+    muteToggle({ on: "RADIO ON", off: "MUTE RADIO", aria: t().radio }));
   const step = !st.order ? (st.started ? "event" : "hero") : st.order.status !== "draft" ? "status" : st.step;
   const view = { hero: viewHero, event: viewEvent, menu: viewMenu, review: viewReview, status: viewStatus }[step]();
   if (step !== "menu") as.open = false;
@@ -699,7 +784,11 @@ function render() {
   lastStep = step;
   const total = st.order?.total ?? null;
   if (motionOK() && total != null && lastTotal != null && total !== lastTotal && lastOrderId === st.order.id) // server total changed: quiet highlight
-    document.querySelectorAll("#total, .sum-total").forEach((el) => el.animate([{ backgroundColor: "rgb(77 91 42 / 0.25)" }, { backgroundColor: "rgb(77 91 42 / 0)" }], { duration: 250, easing: EASE }));
+    document.querySelectorAll("#total, .sum-total").forEach((el) => el.animate([{ backgroundColor: "rgb(168 85 247 / 0.35)" }, { backgroundColor: "rgb(168 85 247 / 0)" }], { duration: 250, easing: EASE }));
+  if (motionOK() && step === "status" && lastStatus && lastStatus !== st.order.status) // stage change: purple flash
+    $("stage")?.animate([{ boxShadow: "0 0 0 2px #A855F7, 0 0 32px rgb(168 85 247 / 0.6)" }, { boxShadow: "0 0 0 0 transparent" }], { duration: 900, easing: EASE });
+  lastStatus = step === "status" ? st.order.status : null;
+  syncPoll(step === "status" && st.order.status in STAGES && st.order.status !== "delivered");
   lastTotal = total; lastOrderId = st.order?.id ?? null;
   document.body.classList.toggle("as-lock", as.open && isPhone());
   as.log.scrollTop = as.stick ? as.log.scrollHeight : logTop;
@@ -718,6 +807,29 @@ function render() {
   if (st.order) $("live").textContent = `${t().total}: ${money(st.order.total, st.order.currency)}`;
 }
 
+// Tracker refresh: every 60s while the tab is visible, never two requests at once; stops when the tracker closes.
+let pollTimer = null, polling = false;
+function syncPoll(on) {
+  if (!on) { clearInterval(pollTimer); pollTimer = null; return; }
+  pollTimer ??= setInterval(async () => {
+    if (document.visibilityState !== "visible" || polling || st.busy || !st.cred) return;
+    polling = true;
+    const cred = st.cred;
+    // A user action, order switch or stop during the request wins over its (now stale) answer.
+    const stale = (o) => st.busy || st.cred !== cred || !pollTimer || (o && st.order && o.version < st.order.version);
+    try {
+      const [o, s2] = await Promise.all([orderApi(), api("/api/public-settings").catch(() => null)]);
+      if (stale(o)) return;
+      const changed = o.status !== st.order?.status || o.version !== st.order?.version || (s2 && s2.safety_car !== st.settings.safety_car);
+      if (s2) Object.assign(st.settings, s2);
+      const stage = o.status !== st.order?.status;
+      st.order = o;
+      if (changed) render();
+      if (stage) chirp();
+    } catch (e) { if (e.status === 404 && !stale()) resetOrder(t().notFound); } finally { polling = false; }
+  }, 60000);
+}
+
 async function setLang(lang) {
   st.lang = lang;
   prefLang.set(lang);
@@ -734,7 +846,7 @@ async function boot() {
   const q = new URLSearchParams(location.search).get("lang");
   st.lang = [q, prefLang.get()].find((l) => l in S) ?? "he";
   render();
-  say(t().loading);
+  say(t().lights, "load");
   const hash = new URLSearchParams(location.hash.slice(1));
   const saved = store.get();
   let cred = hash.get("order") && hash.get("token") ? { id: hash.get("order"), token: hash.get("token") } : saved?.id && saved?.token ? saved : null;
@@ -761,7 +873,7 @@ async function boot() {
     }
     if (!$("message").classList.contains("error")) say("");
   } catch (e) {
-    say(e.status ? e.message : t().error, "error");
+    say(e.status ? e.message : t().error, "flag", boot);
   }
   render();
 }

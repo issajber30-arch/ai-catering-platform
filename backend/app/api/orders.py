@@ -14,6 +14,7 @@ from app.schemas.orders import (
     OrderOut,
     OrderPatch,
     PricingOut,
+    RatingIn,
     RecommendationOut,
     SubmitIn,
 )
@@ -82,7 +83,7 @@ def get_recommendations(
 def submit_order(
     order_id: uuid.UUID, body: SubmitIn, db: Db, token: Token = None, lang: Lang = "he"
 ) -> OrderOut:
-    return service.submit(db, order_id, token, body.version, lang)
+    return service.submit(db, order_id, token, body.version, lang, body.sms_opt_in)
 
 
 @router.post("/orders/{order_id}/reopen")
@@ -90,3 +91,10 @@ def reopen_order(
     order_id: uuid.UUID, body: SubmitIn, db: Db, token: Token = None, lang: Lang = "he"
 ) -> OrderOut:
     return service.reopen(db, order_id, token, body.version, lang)
+
+
+@router.post("/orders/{order_id}/rating")
+def rate_order(
+    order_id: uuid.UUID, body: RatingIn, db: Db, token: Token = None, lang: Lang = "he"
+) -> OrderOut:
+    return service.rate(db, order_id, token, body, lang)

@@ -1,18 +1,74 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Catering</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0F17">
+  <title>CaterKing | קייטרינג לאירועים פרטיים</title>
+  <meta name="description" content="מתכננים יחד, אתם מאשרים. תפריט, מחיר שמחושב בשרת ואישור אישי של בעל העסק.">
+  <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/assets/fonts/plus-jakarta-sans-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/heebo-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/fonts.css">
   <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/intro.css">
+  <link rel="stylesheet" href="/css/home.css">
+  <script src="/js/intro.js"></script>
 </head>
-<body>
-  <main>
-    <h1>Catering</h1>
-    <ul>
-      <li><a href="/customer/">Customer ordering</a></li>
-      <li><a href="/admin/">Business dashboard</a></li>
-    </ul>
+<body class="f1">
+  <svg class="defs" width="0" height="0" aria-hidden="true"><symbol id="ck-crown" viewBox="0 0 120 96"><path d="M8 66 L2 18 L32 42 L60 4 L88 42 L118 18 L112 66 Z" fill="#FF1E00"/><rect x="6" y="72" width="108" height="18" fill="#fff"/></symbol></svg>
+  <div id="ck-intro" aria-hidden="true">
+    <div class="ck-lights"><i></i><i></i><i></i><i></i><i></i></div>
+    <svg class="ck-logo" viewBox="-50 0 520 100" xmlns="http://www.w3.org/2000/svg">
+      <g class="ck-streaks" stroke="#FF1E00" stroke-width="4" stroke-linecap="round"><line x1="-34" y1="40" x2="-8" y2="40"/><line x1="-44" y1="52" x2="-6" y2="52"/><line x1="-28" y1="64" x2="-4" y2="64"/></g>
+      <path class="ck-crown" d="M8 70 L2 22 L32 46 L60 8 L88 46 L118 22 L112 70 Z" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linejoin="round" pathLength="1"/>
+      <path class="ck-crown-fill" d="M8 70 L2 22 L32 46 L60 8 L88 46 L118 22 L112 70 Z" fill="#FF1E00"/>
+      <g class="ck-band"><rect x="6" y="74" width="108" height="18" fill="#FFFFFF"/><g fill="#15151E"><rect x="6" y="74" width="9" height="9"/><rect x="24" y="74" width="9" height="9"/><rect x="42" y="74" width="9" height="9"/><rect x="60" y="74" width="9" height="9"/><rect x="78" y="74" width="9" height="9"/><rect x="96" y="74" width="9" height="9"/><rect x="15" y="83" width="9" height="9"/><rect x="33" y="83" width="9" height="9"/><rect x="51" y="83" width="9" height="9"/><rect x="69" y="83" width="9" height="9"/><rect x="87" y="83" width="9" height="9"/><rect x="105" y="83" width="9" height="9"/></g></g>
+      <text class="ck-word" x="140" y="74" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="800" font-size="62" letter-spacing="-2" fill="#FFFFFF" direction="ltr">CATER<tspan fill="#FF1E00">KING</tspan></text>
+    </svg>
+    <div class="ck-tag" dir="ltr">LIGHTS OUT · CATERING FOR PRIVATE EVENTS</div>
+    <div class="ck-skip" dir="ltr">TAP TO SKIP</div>
+  </div>
+  <a class="skip-link" href="#main" data-t="skip">דילוג לתוכן</a>
+  <header class="nav">
+    <a class="brand" href="/" aria-label="CaterKing"><span class="mark" dir="ltr">CATER<b>KING</b></span><svg class="crown" viewBox="0 0 120 96" aria-hidden="true" focusable="false"><use href="#ck-crown"/></svg></a>
+    <nav class="links" aria-label="Main"><a href="#how" data-t="navHow">איך זה עובד</a><a href="#events" data-t="navEvents">אירועים</a><a href="#rules" data-t="navRules">שקיפות</a></nav>
+    <div class="lang" role="group" aria-label="Language" dir="ltr"><button type="button" data-lang="he">עב</button><button type="button" data-lang="ar">ع</button><button type="button" data-lang="en">EN</button></div>
+    <a class="btn btn-primary nav-cta" href="/customer/" data-t="cta">התחל את הגרנד פרי שלך</a>
+  </header>
+  <main id="main">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="label badge" dir="ltr"><span data-t="badge">Race Weekend Edition // Private Catering</span><i></i></p>
+        <h1><span data-t="h1a">קייטרינג לאירועים פרטיים — מתכננים יחד, </span><span class="red" data-t="h1b">אתם מאשרים</span><span data-t="h1c">.</span></h1>
+        <p class="sub" data-t="sub">תכנון אירוע פרטי בליווי שף אישי, התאמה תזונתית מלאה, ואישור אישי של בעל העסק לפני היציאה לדרך.</p>
+        <div class="actions"><a class="btn btn-primary" href="/customer/" data-t="cta">התחל את הגרנד פרי שלך</a><a class="btn btn-ghost" href="#how" data-t="how">איך זה עובד</a></div>
+      </div>
+      <div class="hero-art carbon" aria-hidden="true"><span class="streak"></span><span class="streak s2"></span>
+        <div class="hero-logo"><svg class="crown" viewBox="0 0 120 96" aria-hidden="true" focusable="false"><use href="#ck-crown"/></svg><span class="mark" dir="ltr">CATER<b>KING</b></span><span class="label" dir="ltr">PIT WALL EDITION</span></div></div>
+    </section>
+    <section class="sec" id="how" aria-labelledby="laps-t">
+      <header class="sec-h"><p class="label red" data-t="lapsKicker">The Protocol</p><h2 id="laps-t" data-t="lapsTitle">3 הקפות</h2><p class="muted" data-t="lapsSub">הפרוטוקול מהגריד ועד הדגל</p></header>
+      <ol class="grid3 laps"><li class="lap lap-purple"><span class="chip chip-purple"><span data-t="lap1">Lap 1</span> // SECTOR 1</span><h3><span data-t="lap1t">תכננו את האירוע</span></h3><p><span data-t="lap1p">הגדרת מועד, מיקום, מספר אורחים וחלון הגעה לאירוע שלכם.</span></p></li><li class="lap lap-red"><span class="chip chip-red"><span data-t="lap2">Lap 2</span> // SECTOR 2</span><h3><span data-t="lap2t">בנו את התפריט עם ה-Race Engineer</span></h3><p><span data-t="lap2p">בחירת מנות לפי קטגוריה, כשרות והעדפות תזונה. העוזר רק מציע, אתם מאשרים כל שינוי.</span></p></li><li class="lap lap-green"><span class="chip chip-green"><span data-t="lap3">Lap 3</span> // SECTOR 3</span><h3><span data-t="lap3t">Pit Wall מאשר ← Chequered Flag</span></h3><p><span data-t="lap3p">בעל העסק בודק כל הזמנה ומאשר או דוחה אותה, והמחיר הסופי מחושב בשרת.</span></p></li></ol>
+    </section>
+    <section class="sec" id="events" aria-labelledby="ev-t">
+      <header class="sec-h"><p class="label" data-t="eventsKicker">Starting Grid</p><h2 id="ev-t" data-t="eventsTitle">סוגי אירועים</h2></header>
+      <ul class="grid4"><li><a class="card ev" href="/customer/"><span class="chip">P1</span><h3><span data-t="ev1">יום הולדת</span></h3><p><span data-t="ev1p">חגיגה בלתי נשכחת עם מנות לילדים ולמבוגרים.</span></p></a></li><li><a class="card ev" href="/customer/"><span class="chip">P2</span><h3><span data-t="ev2">אירוע משפחתי</span></h3><p><span data-t="ev2p">שולחן עשיר לכל הגילאים, עם מנות מרכזיות ותוספות.</span></p></a></li><li><a class="card ev" href="/customer/"><span class="chip">P3</span><h3><span data-t="ev3">בר / בת מצווה</span></h3><p><span data-t="ev3p">עמדות ומנות לחגיגה גדולה, מותאמות לנוער ולמבוגרים.</span></p></a></li><li><a class="card ev" href="/customer/"><span class="chip">P4</span><h3><span data-t="ev4">אירוע חברה</span></h3><p><span data-t="ev4p">אירוח עסקי לצוות או ללקוחות, עם אפשרויות לכל העדפה.</span></p></a></li></ul>
+    </section>
+    <section class="sec" id="rules" aria-labelledby="rules-t">
+      <header class="sec-h"><p class="label" data-t="rulesKicker">Our Rules</p><h2 id="rules-t" data-t="rulesTitle">שקיפות מלאה</h2><p class="muted" data-t="rulesSub">כל מנה וכל מחיר מוצגים בשקיפות מלאה.</p></header>
+      <ul class="grid3"><li class="card"><h3><span data-t="r1">מחיר שקוף</span></h3><p><span data-t="r1p">המחיר מחושב על ידי השרת וכולל מע״מ. מה שמוצג הוא מה שנקבע.</span></p></li><li class="card"><h3><span data-t="r2">כשרות</span></h3><p><span data-t="r2p">מידע כשרות לכל מנה: בשרי / חלבי / פרווה. העסק אינו בהשגחת כשרות.</span></p></li><li class="card"><h3><span data-t="r3">אלרגנים</span></h3><p><span data-t="r3p">אלרגנים מוצגים בגלוי. כשאין מידע מסומן &quot;לא ידוע&quot; — לא &quot;ללא&quot;.</span></p></li></ul>
+    </section>
+    <section class="sec">
+      <div class="panel final"><div><p class="label red" data-t="ctaKicker">Box Box</p><h2 data-t="ctaTitle">מוכנים לצאת להקפה החמה?</h2><p class="muted" data-t="ctaP">תכננו את האירוע וקבלו הצעת מחיר לאישור בעל העסק.</p></div>
+        <a class="btn btn-primary" href="/customer/" data-t="cta">התחל את הגרנד פרי שלך</a></div>
+    </section>
   </main>
+  <footer class="foot">
+    <div class="lang" role="group" aria-label="Language" dir="ltr"><button type="button" data-lang="he">עב</button><button type="button" data-lang="ar">ع</button><button type="button" data-lang="en">EN</button></div>
+    <a class="muted" href="/admin/" data-t="admin">ממשק העסק</a>
+    <p class="muted"><span data-t="footer">© CaterKing 2026</span> <span class="sep">|</span> <span class="mark" dir="ltr">CATER<b>KING</b></span></p>
+  </footer>
+  <script type="module" src="/js/home.js"></script>
 </body>
 </html>

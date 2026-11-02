@@ -30,6 +30,11 @@ class PublicSettingsOut(BaseModel):
     edit_cutoff_hours: int
     min_food_total: Decimal
     max_km: Decimal
+    safety_car: bool
+
+
+class SafetyCarIn(BaseModel):
+    on: bool
 
 
 class DeliveryQuoteIn(BaseModel):

@@ -5,10 +5,9 @@ from decimal import Decimal
 
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import Numeric, SmallInteger, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.db import Base
+from app.core.db import Base, Json
 
 
 class FulfillmentType(enum.StrEnum):
@@ -21,7 +20,7 @@ class DeliveryZone(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, server_default=func.gen_random_uuid())
     name: Mapped[str] = mapped_column(Text)
     fee: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    definition: Mapped[dict] = mapped_column(JSONB, default=dict)
+    definition: Mapped[dict] = mapped_column(Json, default=dict)
     is_active: Mapped[bool] = mapped_column(default=True)
 
 

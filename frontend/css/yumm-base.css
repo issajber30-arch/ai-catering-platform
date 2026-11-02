@@ -1,0 +1,318 @@
+/* yumm.ai design tokens and primitives (design/green-eggs-and-ham option).
+   Layers: --brand-* are the raw brand values; --color-* are the semantic roles components use.
+   Nothing outside this file's :root block hardcodes a color. Contrast notes are in docs/VISUAL_IDENTITY.md. */
+
+@font-face {
+  font-family: "Heebo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/heebo-hebrew-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: "Heebo";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/assets/fonts/heebo-latin-wght-normal.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Display face: Playpen Sans Hebrew ExtraBold, static instance (SIL OFL 1.1). Headlines and the
+   wordmark only. Prices, labels, forms and chat use the interface face (Heebo). */
+@font-face {
+  font-family: "Playpen Sans Hebrew";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/assets/fonts/playpen-sans-hebrew-hebrew-800.woff2") format("woff2");
+  unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+}
+@font-face {
+  font-family: "Playpen Sans Hebrew";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/assets/fonts/playpen-sans-hebrew-latin-800.woff2") format("woff2");
+  unicode-range: U+0020-007E, U+00A0, U+2022;
+}
+
+:root {
+  /* ---- brand values (from the client brief; two derived values marked) ---- */
+  --brand-cream: #fff9ed;
+  --brand-green: #82b441;          /* fills and illustration only; never carries white text */
+  --brand-green-deep: #3f702b;
+  --brand-green-deeper: #2e551e;   /* derived: hover and pressed */
+  --brand-green-tint: #eaf3dc;     /* derived */
+  --brand-red: #f0442d;            /* decorative and large type only */
+  --brand-red-text: #c2321f;       /* derived: text-safe red, 5.3:1 on cream */
+  --brand-yellow: #ffd65a;
+  --brand-ink: #202020;
+  --brand-white: #ffffff;
+
+  /* ---- semantic colors ---- */
+  --color-bg: var(--brand-cream);
+  --color-surface: var(--brand-white);
+  --color-surface-2: #f6ecd3;      /* warm panel tint */
+  --color-line: #e6dcc4;           /* decorative dividers */
+  --color-control-border: #7a7260; /* inputs, chips, choice cards: 4.5:1 on cream */
+  --color-text: var(--brand-ink);
+  --color-muted: #4a4a44;
+  --color-accent: var(--brand-green-deep);
+  --color-accent-strong: var(--brand-green-deeper);
+  --color-accent-soft: var(--brand-green-tint);
+  --color-on-accent: var(--brand-white);
+  --color-fill: var(--brand-green);
+  --color-on-fill: var(--brand-ink);
+  --color-highlight: var(--brand-yellow);
+  --color-success: #2b5f1a;
+  --color-success-soft: #e4f1d0;
+  --color-danger: var(--brand-red-text);
+  --color-danger-soft: #fde6e1;
+  --color-warning: #6b4a00;
+  --color-warning-soft: #fff1c2;
+
+  /* ---- spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---- shape: soft, slightly storybook. Pill for chips and badges. ---- */
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --outline-width: 2px;            /* bold outline on illustrated surfaces */
+
+  /* ---- depth: warm, soft ---- */
+  --shadow-1: 0 1px 2px rgb(32 32 32 / 0.08), 0 2px 6px rgb(63 112 43 / 0.08);
+  --shadow-2: 0 10px 28px rgb(32 32 32 / 0.16);
+
+  /* ---- type ---- */
+  --font: "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-display: "Playpen Sans Hebrew", "Heebo", system-ui, sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-hero: clamp(2rem, 1.2rem + 3.2vw, 3.5rem);
+  --leading-tight: 1.2;
+  --leading-body: 1.55;
+
+  /* ---- interaction ---- */
+  --focus-ring: 3px solid var(--color-accent);
+  --focus-offset: 3px;
+  --state-hover: rgb(32 32 32 / 0.06);
+  --state-disabled-opacity: 0.5;
+  --touch-target: 44px;
+
+  /* ---- motion ---- */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+
+  /* ---- layout reference. Media queries cannot read custom properties, so these are
+     documented values: phone 640px, desktop/docked chat 992px, content container 1120px. ---- */
+  --bp-sm: 640px;
+  --bp-lg: 992px;
+  --container: 1120px;
+
+  /* ---- z-index scale ---- */
+  --z-sticky: 10;
+  --z-chat: 30;
+  --z-toast: 50;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* The hidden attribute must win over any component's display value. */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+h1, h2, h3, h4 { line-height: var(--leading-tight); margin: 0; font-weight: 700; }
+p { margin: 0; }
+
+/* Display voice: major headlines and the wordmark only. text-wrap keeps Hebrew headlines balanced. */
+h1, .display { font-family: var(--font-display); font-weight: 800; text-wrap: balance; }
+
+/* yumm.ai wordmark. The Latin name is always LTR, even inside RTL layouts. */
+.wordmark { font-family: var(--font-display); font-weight: 800; color: var(--color-accent); letter-spacing: 0; }
+.wordmark bdi { direction: ltr; unicode-bidi: isolate; }
+.wordmark .dot { color: var(--brand-red); }
+
+/* Reserved box for illustrations: fixed ratio prevents layout shift; decorative images use alt="". */
+.illus { display: block; aspect-ratio: var(--illus-ratio, 1); width: var(--illus-width, 160px); height: auto; object-fit: contain; }
+img { max-width: 100%; display: block; }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+main {
+  max-width: 1100px;
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4);
+}
+
+:focus-visible { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- icons: hand-inked masks (generated, one flat colour), tinted with currentColor ---------- */
+.icon {
+  display: inline-block;
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  background-color: currentColor;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+.icon-plus { --icon: url("/assets/icons/hand/plus.png"); }
+.icon-minus { --icon: url("/assets/icons/hand/minus.png"); }
+.icon-x { --icon: url("/assets/icons/hand/x.png"); }
+.icon-check { --icon: url("/assets/icons/hand/check.png"); }
+.icon-warning { --icon: url("/assets/icons/hand/warning.png"); }
+.icon-trash { --icon: url("/assets/icons/hand/trash.png"); }
+.icon-chat-circle-text { --icon: url("/assets/icons/hand/chat-circle-text.png"); }
+.icon-paper-plane-right { --icon: url("/assets/icons/hand/paper-plane-right.png"); }
+.icon-caret-left { --icon: url("/assets/icons/hand/caret-left.png"); }
+.icon-caret-right { --icon: url("/assets/icons/hand/caret-right.png"); }
+.icon-info { --icon: url("/assets/icons/hand/info.png"); }
+.icon-storefront { --icon: url("/assets/icons/hand/storefront.png"); }
+.icon-moped { --icon: url("/assets/icons/hand/moped.png"); }
+.icon-sparkle { --icon: url("/assets/icons/hand/sparkle.png"); }
+.icon-shopping-bag-open { --icon: url("/assets/icons/hand/shopping-bag-open.png"); }
+.icon-arrow-right { --icon: url("/assets/icons/hand/arrow-right.png"); }
+.icon-arrow-left { --icon: url("/assets/icons/hand/arrow-left.png"); }
+.icon-leaf { --icon: url("/assets/icons/hand/leaf.png"); }
+.icon-clock-countdown { --icon: url("/assets/icons/hand/clock-countdown.png"); }
+.icon-seal-check { --icon: url("/assets/icons/hand/seal-check.png"); }
+.icon-seal-warning { --icon: url("/assets/icons/hand/seal-warning.png"); }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-5);
+  border: var(--outline-width) solid transparent;
+  border-radius: var(--radius);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
+.btn:disabled { opacity: var(--state-disabled-opacity); cursor: not-allowed; }
+
+/* Bold ink outlines on every button, like the hand-inked illustrations. */
+.btn-primary { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--brand-ink); }
+.btn-primary:hover:not(:disabled) { background: var(--color-accent-strong); }
+
+.btn-secondary { background: var(--color-surface); color: var(--color-text); border-color: var(--brand-ink); }
+.btn-secondary:hover:not(:disabled) { background: var(--color-surface-2); }
+
+.btn-ghost { background: transparent; color: var(--color-accent); padding-inline: var(--space-3); border-color: transparent; }
+.btn-ghost:hover:not(:disabled) { background: var(--color-accent-soft); }
+
+.btn-danger { background: var(--color-surface); color: var(--color-danger); border-color: var(--color-danger); }
+.btn-danger:hover:not(:disabled) { background: var(--color-danger-soft); }
+
+.btn-icon { width: var(--touch-target); padding: 0; }
+
+/* ---------- form fields ---------- */
+.field { display: grid; gap: var(--space-2); align-content: start; }
+.field > label, .field > .label, legend.label { font-weight: 600; font-size: 0.95rem; }
+.field .hint { color: var(--color-muted); font-size: 0.875rem; }
+.field .error { color: var(--color-danger); font-size: 0.875rem; display: flex; gap: var(--space-2); align-items: center; }
+.field .error[hidden] { display: none; }
+
+.input, select.input, textarea.input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
+  border: var(--outline-width) solid var(--color-control-border); /* 4.5:1 on the page, meets non-text contrast */
+  border-radius: var(--radius-sm);
+}
+textarea.input { min-height: 96px; resize: vertical; }
+.input:hover { border-color: var(--color-text); }
+.field.invalid .input { border-color: var(--color-danger); box-shadow: 0 0 0 1px var(--color-danger); }
+
+fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
+
+/* ---------- badges ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+.badge-meat { background: var(--color-danger-soft); color: var(--color-danger); }
+.badge-dairy { background: var(--color-warning-soft); color: var(--color-warning); }
+.badge-pareve { background: var(--color-surface-2); color: var(--color-muted); box-shadow: inset 0 0 0 1px var(--color-line); }
+.badge-green { background: var(--color-success-soft); color: var(--color-success); }
+.badge-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.badge-danger { background: var(--color-danger-soft); color: var(--color-danger); }
+
+/* ---------- skeletons ---------- */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-surface-2) 25%, var(--color-bg) 50%, var(--color-surface-2) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--radius);
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+/* ---------- mascot avatar (shared by the landing page and the app) ---------- */
+/* Round crop of the mascot's hat and face. Decorative; never placed on or beside approve/reject controls. */
+.mascot-avatar {
+  display: inline-block;
+  flex: none;
+  position: relative;
+  width: var(--avatar, 40px);
+  height: var(--avatar, 40px);
+  border-radius: 50%;
+  background: var(--color-highlight);
+  border: var(--outline-width) solid var(--brand-ink);
+  overflow: hidden;
+}
+.mascot-avatar picture { display: block; }
+.mascot-avatar img { position: absolute; left: 50%; top: -3%; transform: translateX(-50%); width: 190%; max-width: none; height: auto; }

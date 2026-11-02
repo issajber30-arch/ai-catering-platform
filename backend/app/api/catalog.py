@@ -68,6 +68,7 @@ def public_settings(db: Db) -> PublicSettingsOut:
         edit_cutoff_hours=s.edit_cutoff_hours,
         min_food_total=s.min_food_total,
         max_km=s.delivery_max_km,
+        safety_car=s.safety_car,
     )
 
 
