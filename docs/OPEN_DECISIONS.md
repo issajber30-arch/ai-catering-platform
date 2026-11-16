@@ -46,3 +46,4 @@ When a decision is made, record it here and move the row out of the table above.
 | 2026-11-02 | 20 | Crown logo, and the lights-out intro plays once per visit | Owner |
 | 2026-11-02 | 20 | Fonts Plus Jakarta Sans, JetBrains Mono, Heebo and Noto Kufi Arabic, self-hosted | Owner |
 | 2026-11-02 | — | The F1 opening page replaces the yumm.ai page at `/` | Owner |
+| 2026-11-16 | — | Lead scoring uses linear regression clipped to 0–100% (owner chose it over logistic regression knowingly), trained on synthetic history. The effects in `services/lead_model.py` are placeholders, not business facts | Owner |

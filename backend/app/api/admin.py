@@ -24,6 +24,7 @@ from app.schemas.catalog import (
     DishOut,
     DishPatch,
 )
+from app.schemas.leads import DemoIn, LeadDetailOut, LeadIn, LeadOut, LeadPatch, ModelCardOut
 from app.schemas.logistics import (
     BlockedIn,
     BlockedOut,
@@ -44,8 +45,9 @@ from app.schemas.orders import (
     QuantityRuleOut,
 )
 from app.schemas.settings import SafetyCarIn, SettingsIn, SettingsOut
-from app.services import availability, delivery, geo, notify
+from app.services import availability, delivery, geo, lead_model, notify
 from app.services import catalog as service
+from app.services import leads as lead_service
 from app.services import orders as order_service
 from app.services import settings as settings_service
 
@@ -287,3 +289,44 @@ def put_safety_car(
 @router.get("/notify-status")
 def notify_status(sender: Annotated[notify.Sender, Depends(notify.get_sender)]) -> dict:
     return {"enabled": bool(sender.channels)}
+
+
+# ---- leads (QUALIFYING). Fixed paths first so they don't match /leads/{lead_id}.
+@router.get("/leads/model")
+def lead_model_card() -> ModelCardOut:
+    return ModelCardOut(**lead_model.trained()[1])
+
+
+@router.post("/leads/demo", status_code=201)
+def add_demo_leads(body: DemoIn, db: Db) -> list[LeadOut]:
+    return lead_service.add_demo(db, body.n)
+
+
+@router.delete("/leads/demo")
+def delete_demo_leads(db: Db) -> dict:
+    return {"deleted": lead_service.delete_demo(db)}
+
+
+@router.get("/leads")
+def list_leads(db: Db) -> list[LeadOut]:
+    return lead_service.list_scored(db)
+
+
+@router.post("/leads", status_code=201)
+def create_lead(body: LeadIn, db: Db) -> LeadOut:
+    return lead_service.create(db, body.model_dump())
+
+
+@router.get("/leads/{lead_id}")
+def get_lead(lead_id: uuid.UUID, db: Db) -> LeadDetailOut:
+    return lead_service.detail(db, lead_id)
+
+
+@router.patch("/leads/{lead_id}")
+def patch_lead(lead_id: uuid.UUID, body: LeadPatch, db: Db) -> LeadOut:
+    return lead_service.patch(db, lead_id, body.model_dump(exclude_unset=True))
+
+
+@router.delete("/leads/{lead_id}", status_code=204)
+def delete_lead(lead_id: uuid.UUID, db: Db) -> None:
+    lead_service.delete(db, lead_id)

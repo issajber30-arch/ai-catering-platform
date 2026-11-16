@@ -52,7 +52,7 @@ def create_sqlite_schema(engine: Engine, seed: bool = True) -> list[str]:
     shortcut: SQLite gets only what the models declare (no SQL CHECK constraints, RLS or row
     locks); the SQL files stay the real schema and CI/deploys run them on Postgres.
     """
-    from app.models import logistics, orders  # noqa: F401  registers their tables
+    from app.models import leads, logistics, orders  # noqa: F401  registers their tables
     from app.models.ai import AiMessage
     from app.models.catalog import Allergen
     from app.models.settings import BusinessSettings

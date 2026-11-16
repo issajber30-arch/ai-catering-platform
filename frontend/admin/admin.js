@@ -598,9 +598,134 @@ async function showSettings(tabs) {
   app.replaceChildren(tabs, h("section", {}, h("h2", {}, "הגדרות"), form, safety, smsBox));
 }
 
+// ---- leads (QUALIFYING): chance to order from a clipped linear regression (backend/app/services/lead_model.py)
+const EVENT_TEXT = { birthday: "יום הולדת", family_celebration: "אירוע משפחתי", bar_bat_mitzvah: "בר/בת מצווה", shabbat: "שבת", other: "אחר" };
+const SOURCE_TEXT = { instagram: "Instagram", google: "Google", referral: "המלצה", whatsapp: "WhatsApp", phone: "טלפון", other: "אחר" };
+const LEAD_STATUS = { new: { he: "חדש", tone: "cyan" }, contacted: { he: "נוצר קשר", tone: "amber" },
+  won: { he: "הזמין", tone: "green" }, lost: { he: "לא הזמין", tone: "red" } };
+const FIELD_TEXT = { event_type: "סוג אירוע", guests: "מספר אורחים", days_until_event: "זמן עד האירוע", source: "מקור",
+  returning_customer: "לקוח חוזר", used_assistant: "שוחח עם העוזר", requested_quote: "ביקש הצעת מחיר", budget_per_guest: "תקציב לאורח" };
+const pct = (x) => Math.round(Number(x) * 100);
+const band = (c) => (c >= 0.7 ? "green" : c >= 0.4 ? "amber" : "red");
+const isOpen = (l) => l.status === "new" || l.status === "contacted";
+const leadDl = (pairs) => h("dl", {}, ...pairs.flatMap(([k, v]) => [h("dt", {}, k), h("dd", {}, cell(v))]));
+const chanceBar = (l) => h("span", { class: `chance tone-${band(l.chance)}`, title: l.clipped ? `תחזית גולמית ${pct(l.raw_prediction)}%, נחתכה לטווח 0–100%` : null },
+  h("span", { class: "meter", "aria-hidden": "true" }, h("i", { style: `--p:${pct(l.chance)}%` })),
+  h("b", { class: "num" }, `${pct(l.chance)}%`));
+const leadChip = (st) => h("span", { class: `chip chip-${LEAD_STATUS[st]?.tone ?? "muted"}` }, LEAD_STATUS[st]?.he ?? st);
+
+function leadForm(after) {
+  const f = (label, el) => h("label", {}, label, el);
+  const opts = (map) => Object.entries(map).map(([v, t]) => h("option", { value: v }, t));
+  const tomorrow = new Date(Date.now() + 864e5).toLocaleDateString("en-CA", { timeZone: TZ });
+  const form = h("form", { class: "card", onsubmit: (ev) => {
+    ev.preventDefault();
+    const d = new FormData(form);
+    const body = { full_name: d.get("full_name"), event_type: d.get("event_type"), event_date: d.get("event_date"),
+      guests: Number(d.get("guests")), source: d.get("source"), phone: d.get("phone") || null,
+      budget_per_guest: d.get("budget_per_guest") || null,
+      returning_customer: d.has("returning_customer"), used_assistant: d.has("used_assistant"), requested_quote: d.has("requested_quote") };
+    run(async () => {
+      const lead = await api("/api/admin/leads", { method: "POST", body: JSON.stringify(body) });
+      await after();
+      say(`הליד נוסף — סיכוי להזמנה ${pct(lead.chance)}%.`);
+    });
+  } },
+    h("div", { class: "grid" },
+      f("שם", h("input", { name: "full_name", required: true, maxlength: "200", autocomplete: "off" })),
+      f("טלפון", h("input", { name: "phone", type: "tel", maxlength: "40", dir: "ltr", autocomplete: "off" })),
+      f("סוג אירוע", h("select", { name: "event_type" }, opts(EVENT_TEXT))),
+      f("תאריך האירוע", h("input", { name: "event_date", type: "date", required: true, min: todayStr(), value: tomorrow })),
+      f("אורחים", h("input", { name: "guests", type: "number", min: "1", max: "1000", required: true, value: "40" })),
+      f("מקור", h("select", { name: "source" }, opts(SOURCE_TEXT))),
+      f("תקציב לאורח (₪, לא חובה)", h("input", { name: "budget_per_guest", type: "number", min: "0", step: "0.01" }))),
+    h("div", { class: "grid" },
+      h("label", { class: "check" }, h("input", { type: "checkbox", name: "returning_customer" }), "לקוח חוזר"),
+      h("label", { class: "check" }, h("input", { type: "checkbox", name: "used_assistant" }), "שוחח עם העוזר"),
+      h("label", { class: "check" }, h("input", { type: "checkbox", name: "requested_quote" }), "ביקש הצעת מחיר")),
+    h("button", { class: "primary", type: "submit" }, "חישוב סיכוי והוספה"));
+  return form;
+}
+
+async function showLeads(tabs, openId = null) {
+  if (openId) return showLead(tabs, openId);
+  const [leads, card] = await Promise.all([api("/api/admin/leads"), api("/api/admin/leads/model")]);
+  const open = leads.filter(isOpen);
+  const today = todayStr();
+  const tile = (n, tone, term, he, num) => h("div", { class: `tile tile-${tone}` },
+    h("div", { class: "label" }, `SECTOR ${n} // ${term}`), h("div", { class: "he" }, he), h("div", { class: "num" }, String(num)));
+  const tiles = h("section", { class: "tiles", "aria-label": "לידים לפי סיכוי" },
+    tile(1, "green", "POLE", "סיכוי גבוה (70%+)", open.filter((l) => l.chance >= 0.7).length),
+    tile(2, "amber", "POINTS", "סיכוי בינוני (40–69%)", open.filter((l) => l.chance >= 0.4 && l.chance < 0.7).length),
+    tile(3, "red", "BACK OF THE GRID", "סיכוי נמוך (מתחת ל-40%)", open.filter((l) => l.chance < 0.4).length),
+    tile(4, "cyan", "NEW TODAY", "לידים חדשים היום", leads.filter((l) => localDay(l.created_at) === today).length));
+  const reload = () => showLeads(tabs);
+  const goLead = (id) => run(() => showLead(tabs, id));
+  const tower = h("section", { class: "panel tower" },
+    h("div", { class: "head" }, h("h2", {}, "QUALIFYING ORDER"), h("p", { class: "hint" }, "לידים פתוחים לפי הסיכוי שיזמינו, ואחריהם לידים סגורים")),
+    leads.length ? h("ul", { class: "rows" },
+      h("li", { class: "row th", "aria-hidden": "true" }, ...["POS", "ליד / אירוע", "אורחים", "סיכוי להזמנה", "סטטוס", ""].map((t) => h("span", { class: "label" }, t))),
+      ...leads.map((l, i) => h("li", { class: `row tone-${isOpen(l) ? band(l.chance) : "muted"}` },
+        h("span", { class: "pos" }, isOpen(l) ? `P${i + 1}` : "—"),
+        h("span", { class: "who" }, h("button", { type: "button", class: "link", onclick: () => goLead(l.id) }, firstName(l.full_name)),
+          h("small", { class: "meta" }, `${fmtDate(l.event_date)} · ${EVENT_TEXT[l.event_type] ?? l.event_type} · ${SOURCE_TEXT[l.source] ?? l.source}`)),
+        h("span", { class: "guests" }, `${l.guests} אורחים`),
+        chanceBar(l),
+        h("span", { class: "stage" }, leadChip(l.status), l.is_demo ? h("span", { class: "chip chip-muted" }, "DEMO") : null),
+        h("button", { type: "button", class: "ghost", onclick: () => goLead(l.id) }, "פתיחה"))))
+      : h("p", { class: "hint" }, "אין לידים עדיין. הוסיפו ליד או לידים לדוגמה."));
+  const side = h("div", {},
+    h("section", { class: "panel" }, h("div", { class: "head" }, h("h2", {}, "NEW ENTRY"), h("p", { class: "hint" }, "ליד חדש, למשל מישהו שהתקשר")), leadForm(reload)),
+    h("section", { class: "panel" }, h("div", { class: "head" }, h("h2", {}, "DEMO"), h("p", { class: "hint" }, "לידים סינתטיים להדגמה, מסומנים DEMO")),
+      h("div", { class: "decision" },
+        h("button", { type: "button", onclick: () => run(async () => {
+          await api("/api/admin/leads/demo", { method: "POST", body: JSON.stringify({ n: 12 }) }); await reload(); say("נוספו 12 לידים לדוגמה."); }) }, "הוספת 12 לידים לדוגמה"),
+        h("button", { type: "button", class: "danger", onclick: () => run(async () => {
+          const r = await api("/api/admin/leads/demo", { method: "DELETE" }); await reload(); say(`נמחקו ${r.deleted} לידים לדוגמה.`); }) }, "מחיקת לידי הדוגמה"))),
+    h("section", { class: "panel" }, h("div", { class: "head" }, h("h2", {}, "TELEMETRY"), h("p", { class: "hint" }, "רגרסיה לינארית, נחתכת ל-0–100%")),
+      h("div", { class: "card model-card" },
+        leadDl([["R²", card.r2.toFixed(2)], ["תחזיות שנחתכו", `${pct(card.clipped_share)}%`], ["דיוק בסף 50%", `${pct(card.accuracy_at_50)}%`],
+          ["שיעור הזמנה בסיסי", `${pct(card.base_rate)}%`], ["שורות אימון", `${card.train_rows.toLocaleString("en-US")} (בדיקה: ${card.holdout_rows})`]]),
+        h("p", { class: "notice" }, "המודל אומן על נתונים סינתטיים. ההשפעות הן הנחות להדגמה, לא נתוני העסק."))));
+  app.replaceChildren(tabs, tiles, h("div", { class: "wall" }, tower, side));
+}
+
+async function showLead(tabs, id) {
+  const l = await api(`/api/admin/leads/${encodeURIComponent(id)}`);
+  const url = `/api/admin/leads/${encodeURIComponent(id)}`;
+  const back = h("button", { type: "button", class: "ghost", onclick: () => run(() => showLeads(tabs)) }, "→ חזרה לרשימה");
+  const setStatus = (st) => run(async () => {
+    await api(url, { method: "PATCH", body: JSON.stringify({ status: st }) });
+    await showLead(tabs, id);
+    say(`הסטטוס עודכן ל"${LEAD_STATUS[st].he}".`);
+  });
+  const head = h("section", { class: "card od-head" },
+    h("div", {}, h("div", { class: "label" }, `LEAD // ${l.is_demo ? "DEMO" : "LIVE"}`), h("h2", {}, l.full_name), leadChip(l.status)),
+    h("div", { class: "od-total" }, h("span", { class: "label" }, "סיכוי להזמנה"), h("span", { class: `num tone-text-${band(l.chance)}` }, `${pct(l.chance)}%`),
+      l.clipped ? h("small", { class: "hint" }, `תחזית גולמית ${pct(l.raw_prediction)}% — נחתכה לטווח`) : null));
+  const parts = Object.entries(l.breakdown).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  const maxAbs = Math.max(0.01, ...parts.map(([, v]) => Math.abs(v)));
+  const breakdown = h("section", { class: "panel" },
+    h("div", { class: "head" }, h("h2", {}, "SECTOR TIMES"), h("p", { class: "hint" }, `מה הזיז את הסיכוי ביחס לליד ממוצע (${pct(l.average_chance)}%), בנקודות אחוז`)),
+    h("ul", { class: "contrib" }, ...parts.map(([k, v]) => h("li", { class: v >= 0 ? "up" : "down" },
+      h("span", {}, FIELD_TEXT[k] ?? k),
+      h("span", { class: "meter", "aria-hidden": "true" }, h("i", { style: `--p:${Math.round((Math.abs(v) / maxAbs) * 100)}%` })),
+      h("b", { class: "num" }, `${v >= 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(1)}`)))));
+  const facts = h("section", { class: "panel" }, h("div", { class: "head" }, h("h2", {}, "ENTRY")), h("div", { class: "card" },
+    leadDl([["סוג אירוע", EVENT_TEXT[l.event_type] ?? l.event_type], ["תאריך", fmtDate(l.event_date)], ["אורחים", l.guests],
+      ["מקור", SOURCE_TEXT[l.source] ?? l.source], ["תקציב לאורח", l.budget_per_guest == null ? "לא ידוע" : shekel(l.budget_per_guest)],
+      ["לקוח חוזר", l.returning_customer ? "כן" : "לא"], ["שוחח עם העוזר", l.used_assistant ? "כן" : "לא"],
+      ["ביקש הצעת מחיר", l.requested_quote ? "כן" : "לא"], ["טלפון", l.phone ?? "—"], ["נוצר", fmtDT(l.created_at)]]),
+    h("div", { class: "decision" }, ...Object.entries(LEAD_STATUS).map(([st, { he }]) =>
+      h("button", { type: "button", "aria-pressed": String(st === l.status), class: st === "won" ? "approve" : st === "lost" ? "danger" : null, onclick: () => setStatus(st) }, he))),
+    h("button", { type: "button", class: "danger", onclick: () => run(async () => {
+      await api(url, { method: "DELETE" }); await showLeads(tabs); say("הליד נמחק."); }) }, "מחיקת ליד")));
+  app.replaceChildren(tabs, h("div", { class: "subnav" }, back), head, h("div", { class: "od-grid" }, facts, breakdown));
+}
+
 // ---- shell
 const GROUPS = {
-  wall: { label: "Pit Wall", keys: [] }, orders: { label: "הזמנות", keys: [] },
+  wall: { label: "Pit Wall", keys: [] }, orders: { label: "הזמנות", keys: [] }, leads: { label: "QUALIFYING", keys: [] },
   menu: { label: "תפריט", keys: ["categories", "dishes", "serving-rules"] },
   settings: { label: "הגדרות", keys: ["settings", "time-slots", "blocked-dates"] },
 };
@@ -617,6 +742,7 @@ async function showDashboard() {
     for (const k of GROUPS[g].keys) sub.append(h("button", { type: "button", "aria-pressed": String(k === key), onclick: () => run(() => openSection(k)) }, SUB[k]));
     if (key === "wall") await showWall(sub);
     else if (key === "orders") await showOrders(sub, "", arg);
+    else if (key === "leads") await showLeads(sub, arg);
     else if (key === "serving-rules") await showRules(sub);
     else if (key === "settings") await showSettings(sub);
     else await showResource(key, sub);
